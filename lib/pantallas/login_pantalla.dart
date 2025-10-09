@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_button.dart';
+import '../api_service.dart';
 
 class LoginPantalla extends StatefulWidget {
   const LoginPantalla({super.key});
@@ -108,8 +109,34 @@ class _LoginPantallaState extends State<LoginPantalla> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      // TODO: lógica de login
+                    onPressed: () async {
+                      final email = correoController.text.trim();
+                      final contrasenia = claveController.text.trim();
+                      if (email.isEmpty || contrasenia.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor, completa todos los campos.')),
+                        );
+                        return;
+                      }
+                      try {
+                        final response = await ApiService.login(email, contrasenia);
+                        if (response.statusCode == 200) {
+                          // Si el login es exitoso, navega a la pantalla de bienvenida
+                          if (!context.mounted) return;
+                          Navigator.pushReplacementNamed(context, '/welcome');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('¡Conexión exitosa!')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ' + response.body)),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error de conexión: ' + e.toString())),
+                        );
+                      }
                     },
                     child: const Text(
                       'Iniciar sesión',

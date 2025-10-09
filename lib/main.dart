@@ -18,6 +18,10 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: const WelcomePantalla(),
+      routes: {
+        '/welcome': (context) => const WelcomePantalla(),
+        // Puedes agregar más rutas aquí si lo necesitas
+      },
     );
   }
 }
