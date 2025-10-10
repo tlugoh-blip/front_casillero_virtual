@@ -18,6 +18,16 @@ class _LoginPantallaState extends State<LoginPantalla> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF23408E)),
+          onPressed: () {
+            Navigator.pop(context); // Volver a la pantalla anterior (welcome)
+          },
+        ),
+      ),
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
@@ -121,9 +131,9 @@ class _LoginPantallaState extends State<LoginPantalla> {
                       try {
                         final response = await ApiService.login(email, contrasenia);
                         if (response.statusCode == 200) {
-                          // Si el login es exitoso, navega a la pantalla de bienvenida
+                          // Si el login es exitoso, navega a la pantalla principal (HomePantalla)
                           if (!context.mounted) return;
-                          Navigator.pushReplacementNamed(context, '/welcome');
+                          Navigator.pushReplacementNamed(context, '/');
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('¡Conexión exitosa!')),
                           );
@@ -159,7 +169,7 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        // TODO: navegar a registro
+                        Navigator.pushReplacementNamed(context, '/registrar');
                       },
                       child: const Text(
                         'Regístrate aquí',
