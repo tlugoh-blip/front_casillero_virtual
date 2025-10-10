@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api_service.dart';
 
 class RegistrarPantalla extends StatefulWidget {
   const RegistrarPantalla({super.key});
@@ -158,8 +159,46 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      // TODO: lógica de registro
+                    onPressed: () async {
+                      final nombre = nombreController.text.trim();
+                      final telefono = telefonoController.text.trim();
+                      final email = correoController.text.trim();
+                      final contrasenia = claveController.text;
+                      final confirmar = confirmarClaveController.text;
+                      if (nombre.isEmpty || telefono.isEmpty || email.isEmpty || contrasenia.isEmpty || confirmar.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor, completa todos los campos.')),
+                        );
+                        return;
+                      }
+                      if (contrasenia != confirmar) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Las contraseñas no coinciden.')),
+                        );
+                        return;
+                      }
+                      try {
+                        final response = await ApiService.register(
+                          nombre: nombre,
+                          telefono: telefono,
+                          email: email,
+                          contrasenia: contrasenia,
+                        );
+                        if (response.statusCode == 200 || response.statusCode == 201) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Registro exitoso. Inicia sesión.')),
+                          );
+                          // Puedes navegar a la pantalla de login aquí si lo deseas
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ' + (response.body.isNotEmpty ? response.body : 'No se pudo registrar.'))),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error de conexión: $e')),
+                        );
+                      }
                     },
                     child: const Text(
                       'Crear cuenta',

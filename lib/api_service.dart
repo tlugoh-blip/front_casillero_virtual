@@ -16,5 +16,26 @@ class ApiService {
     return response;
   }
 
+  // Función para registrar usuario con todos los campos de la pantalla
+  static Future<http.Response> register({
+    required String nombre,
+    required String telefono,
+    required String email,
+    required String contrasenia,
+  }) async {
+    final url = Uri.parse('$baseUrl/usuario/add');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'nombre': nombre,
+        'telefono': telefono,
+        'email': email,
+        'contrasenia': contrasenia,
+      }),
+    );
+    return response;
+  }
+
   // Puedes agregar más funciones para otros endpoints aquí
 }
