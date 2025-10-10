@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:front_casillero_virtual/pantallas/login_pantalla.dart';
 import 'pantallas/home_pantalla.dart';
+import 'pantallas/welcome_pantalla.dart';
+import 'pantallas/Registrar_pantalla.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,10 +19,12 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const HomePantalla(),
+      initialRoute: '/welcome',
       routes: {
+        '/welcome': (context) => const WelcomePantalla(),
+        '/login': (context) => const LoginPantalla(),
+        '/register': (context) => const RegistrarPantalla(),
         '/home': (context) => const HomePantalla(),
-        // Puedes agregar más rutas aquí si lo necesitas
       },
     );
   }

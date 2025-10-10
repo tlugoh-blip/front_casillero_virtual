@@ -131,9 +131,8 @@ class _LoginPantallaState extends State<LoginPantalla> {
                       try {
                         final response = await ApiService.login(email, contrasenia);
                         if (response.statusCode == 200) {
-                          // Si el login es exitoso, navega a la pantalla principal (HomePantalla)
                           if (!context.mounted) return;
-                          Navigator.pushReplacementNamed(context, '/');
+                          Navigator.pushReplacementNamed(context, '/home');
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('¡Conexión exitosa!')),
                           );
@@ -169,7 +168,7 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.pushReplacementNamed(context, '/registrar');
+                        Navigator.pushReplacementNamed(context, '/register');
                       },
                       child: const Text(
                         'Regístrate aquí',

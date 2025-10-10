@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api_service.dart';
 
 class RegistrarPantalla extends StatefulWidget {
   const RegistrarPantalla({super.key});
@@ -15,6 +16,7 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
   final TextEditingController correoController = TextEditingController();
   final TextEditingController claveController = TextEditingController();
   final TextEditingController confirmarClaveController = TextEditingController();
+  final TextEditingController fechaNacimientoController = TextEditingController();
   bool ocultarClave = true;
   bool ocultarConfirmarClave = true;
 
@@ -194,6 +196,22 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                // Campo fecha de nacimiento
+                TextField(
+                  controller: fechaNacimientoController,
+                  keyboardType: TextInputType.datetime,
+                  decoration: InputDecoration(
+                    hintText: 'Fecha de nacimiento (yyyy-MM-dd)',
+                    filled: true,
+                    fillColor: const Color(0xFFF5F6FA),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
@@ -206,9 +224,52 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                       ),
                       elevation: 2,
                     ),
-                    onPressed: () {
-                      // Aquí deberías poner la lógica de registro y, si es exitosa:
-                      Navigator.pushReplacementNamed(context, '/');
+                    onPressed: () async {
+                      final nombre = nombreController.text.trim();
+                      final apellidos = apellidoController.text.trim();
+                      final cedula = cedulaController.text.trim();
+                      final telefono = telefonoController.text.trim();
+                      final email = correoController.text.trim();
+                      final contrasenia = claveController.text;
+                      final confirmar = confirmarClaveController.text;
+                      final fechaNacimiento = fechaNacimientoController.text.trim();
+                      if (nombre.isEmpty || apellidos.isEmpty || cedula.isEmpty || telefono.isEmpty || email.isEmpty || contrasenia.isEmpty || confirmar.isEmpty || fechaNacimiento.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor, completa todos los campos.')),
+                        );
+                        return;
+                      }
+                      if (contrasenia != confirmar) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Las contraseñas no coinciden.')),
+                        );
+                        return;
+                      }
+                      try {
+                        final response = await ApiService.register(
+                          nombre: nombre,
+                          apellidos: apellidos,
+                          cedula: cedula,
+                          email: email,
+                          telefono: telefono,
+                          contrasenia: contrasenia,
+                          fechaNacimiento: fechaNacimiento,
+                        );
+                        if (response.statusCode == 200 || response.statusCode == 201) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Registro exitoso. Inicia sesión.')),
+                          );
+                          Navigator.pushReplacementNamed(context, '/login');
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ' + (response.body.isNotEmpty ? response.body : 'No se pudo registrar.'))),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error de conexión: $e')),
+                        );
+                      }
                     },
                     child: const Text(
                       'Crear cuenta',
