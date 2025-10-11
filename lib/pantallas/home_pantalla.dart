@@ -83,24 +83,26 @@ class HomePantalla extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Grid de marcas
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GridView(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    childAspectRatio: 1.4,
-                  ),
-                  children: [
-                    _brandGridTile('assets/imagenes/adidas.png'),
-                    _brandGridTile('assets/imagenes/nike.png'),
-                    _brandGridTile('assets/imagenes/adidas.png'),
-                    _brandGridTile('assets/imagenes/nike.png'),
-                  ],
-                ),
+            // Grid de marcas en scroll vertical de a dos
+            SizedBox(
+              height: 360,
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                scrollDirection: Axis.vertical,
+                childAspectRatio: 1.1,
+                children: [
+                  _brandScrollTile('assets/imagenes/adidas.png'),
+                  _brandScrollTile('assets/imagenes/nike.png'),
+                  _brandScrollTile('assets/imagenes/boss.png'),
+                  _brandScrollTile('assets/imagenes/calvinklein.png'),
+                  _brandScrollTile('assets/imagenes/puma.png'),
+                  _brandScrollTile('assets/imagenes/reebok.png'),
+                  _brandScrollTile('assets/imagenes/tommy.png'),
+                  _brandScrollTile('assets/imagenes/underh.png'),
+                ],
               ),
             ),
             // Barra de navegación inferior
@@ -129,8 +131,9 @@ class HomePantalla extends StatelessWidget {
     );
   }
 
-  static Widget _brandGridTile(String assetPath) {
+  static Widget _brandScrollTile(String assetPath) {
     return Container(
+      width: 140,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(18),
