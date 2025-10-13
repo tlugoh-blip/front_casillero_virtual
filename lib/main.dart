@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:front_casillero_virtual/pantallas/login_pantalla.dart';
-import 'pantallas/home_pantalla.dart';
+import 'pantallas/editarperfil_pantalla.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,11 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const HomePantalla(),
-      routes: {
-        '/home': (context) => const HomePantalla(),
-        // Puedes agregar más rutas aquí si lo necesitas
-      },
+      home: const EditarPerfilPantalla(),
     );
   }
 }
