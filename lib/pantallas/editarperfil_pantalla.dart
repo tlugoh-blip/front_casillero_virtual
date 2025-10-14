@@ -195,11 +195,11 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                                             return const Icon(Icons.person, size: 56, color: Colors.grey);
                                           }
                                         })()
-                                      : Image.memory(
-                                          base64Decode(_base64Image),
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                        )))
+                                  : Image.network(
+                                      'data:image/jpeg;base64,${_base64Image}',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                    ))
                               : const Icon(Icons.person, size: 56, color: Colors.grey),
                         ),
                       ),
