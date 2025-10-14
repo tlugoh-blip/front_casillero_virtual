@@ -51,19 +51,22 @@ class ApiService {
     required String email,
     required String telefono,
     required String direccionEntrega,
-    required String imagen, // base64 string
+    String? imagen, // base64 string, optional
   }) async {
     final url = Uri.parse('$baseUrl/usuario/update/$id');
+    final body = {
+      'nombre': nombre,
+      'email': email,
+      'telefono': telefono,
+      'direccionEntrega': direccionEntrega,
+    };
+    if (imagen != null) {
+      body['imagen'] = imagen;
+    }
     final response = await http.put(
       url,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'nombre': nombre,
-        'email': email,
-        'telefono': telefono,
-        'direccionEntrega': direccionEntrega,
-        'imagen': imagen,
-      }),
+      body: jsonEncode(body),
     );
     return response;
   }

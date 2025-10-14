@@ -97,7 +97,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
         email: _emailController.text,
         telefono: _telefonoController.text,
         direccionEntrega: _direccionController.text,
-        imagen: _base64Image,
+        imagen: _base64Image.isNotEmpty ? _base64Image : null,
       );
 
       if (response.statusCode == 200) {
@@ -174,7 +174,17 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                           height: 112,
                           color: Colors.white,
                           child: _base64Image.isNotEmpty
-                              ? Image.memory(base64Decode(_base64Image), fit: BoxFit.cover)
+                              ? (_base64Image.startsWith('data:') || _base64Image.startsWith('http')
+                                  ? Image.network(
+                                      _base64Image,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                    )
+                                  : Image.memory(
+                                      base64Decode(_base64Image),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                    ))
                               : const Icon(Icons.person, size: 56, color: Colors.grey),
                         ),
                       ),
