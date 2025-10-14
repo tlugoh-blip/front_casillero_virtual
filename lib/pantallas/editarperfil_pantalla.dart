@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:front_casillero_virtual/api_service.dart';
 
 class EditarPerfilPantalla extends StatefulWidget {
@@ -174,7 +175,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                       color: Colors.white,
                       child: _base64Image.isNotEmpty
                           ? Image.memory(
-                              base64Decode(_base64Image),
+                              Uint8List.fromList(base64Decode(_base64Image)),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return const Icon(
