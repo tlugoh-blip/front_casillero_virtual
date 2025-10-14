@@ -126,144 +126,140 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     return Scaffold(
       backgroundColor: const Color(0xFF003366), // Azul oscuro
       body: SafeArea(
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Logo Upper
-                      Image.asset(
-                        'assets/imagenes/logo_upper.jpeg',
-                        height: 48,
-                        fit: BoxFit.contain,
-                      ),
-                      // Botón cerrar
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
+                  // Logo Upper
+                  Image.asset(
+                    'assets/imagenes/logo_upper.jpeg',
+                    height: 48,
+                    fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 16),
-                  // Título
-                  const Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Editar Perfil',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  // Botón cerrar
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(height: 16),
-                  // Imagen de perfil con botón de cámara
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      ClipOval(
-                        child: Container(
-                          width: 112,
-                          height: 112,
-                          color: Colors.white,
-                          child: _base64Image.isNotEmpty
-                              ? (_base64Image.startsWith('http') || _base64Image.startsWith('https')
-                                  ? Image.network(
-                                      _base64Image,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                    )
-                                  : (_base64Image.startsWith('data:')
-                                      ? (() {
-                                          // Handle data URL: extract base64 part after comma
-                                          final commaIndex = _base64Image.indexOf(',');
-                                          if (commaIndex != -1) {
-                                            final base64Data = _base64Image.substring(commaIndex + 1);
-                                            return Image.memory(
-                                              base64Decode(base64Data),
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                            );
-                                          } else {
-                                            return const Icon(Icons.person, size: 56, color: Colors.grey);
-                                          }
-                                        })()
-                                  : Image.network(
-                                      'data:image/jpeg;base64,${_base64Image}',
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                    ))
-                              : const Icon(Icons.person, size: 56, color: Colors.grey),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 4,
-                        right: 4,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
-                            onPressed: _pickImage,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Campos de texto
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildTextField('Nombre', _nombreController),
-                          const SizedBox(height: 16),
-                          _buildTextField('Email', _emailController),
-                          const SizedBox(height: 16),
-                          _buildTextField('Adreso de delivery', _direccionController),
-                          const SizedBox(height: 16),
-                          _buildTextField('Teléfono', _telefonoController),
-                          const SizedBox(height: 16),
-                          _buildTextField('Usuario', _usuarioController),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Botón Guardar
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0052CC),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                      ),
-                      onPressed: _isLoading ? null : _saveProfile,
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Guardar',
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              // Título
+              const Align(
+                alignment: Alignment.center,
+                child: Text(
+                  'Editar Perfil',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Imagen de perfil con botón de cámara
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  ClipOval(
+                    child: Container(
+                      width: 112,
+                      height: 112,
+                      color: Colors.white,
+                      child: _base64Image.isNotEmpty
+                          ? (_base64Image.startsWith('http') || _base64Image.startsWith('https')
+                              ? Image.network(
+                                  _base64Image,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                )
+                              : (_base64Image.startsWith('data:')
+                                  ? (() {
+                                      // Handle data URL: extract base64 part after comma
+                                      final commaIndex = _base64Image.indexOf(',');
+                                      if (commaIndex != -1) {
+                                        final base64Data = _base64Image.substring(commaIndex + 1);
+                                        return Image.memory(
+                                          base64Decode(base64Data),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                        );
+                                      } else {
+                                        return const Icon(Icons.person, size: 56, color: Colors.grey);
+                                      }
+                                    })()
+                              : Image.network(
+                                  'data:image/jpeg;base64,${_base64Image}',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                ))
+                          : const Icon(Icons.person, size: 56, color: Colors.grey),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+                        onPressed: _pickImage,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Campos de texto
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildTextField('Nombre', _nombreController),
+                      const SizedBox(height: 16),
+                      _buildTextField('Email', _emailController),
+                      const SizedBox(height: 16),
+                      _buildTextField('Adreso de delivery', _direccionController),
+                      const SizedBox(height: 16),
+                      _buildTextField('Teléfono', _telefonoController),
+                      const SizedBox(height: 16),
+                      _buildTextField('Usuario', _usuarioController),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botón Guardar
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0052CC),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                  ),
+                  onPressed: _isLoading ? null : _saveProfile,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Guardar',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
