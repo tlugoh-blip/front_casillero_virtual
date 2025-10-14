@@ -85,7 +85,7 @@ class ApiService {
 
   // Función para obtener datos del usuario por ID
   static Future<Map<String, dynamic>?> getUsuario(int id) async {
-    final url = Uri.parse('$baseUrl/usuario/$id');
+    final url = Uri.parse('$baseUrl/usuario/get/$id');
     final response = await http.get(url);
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
