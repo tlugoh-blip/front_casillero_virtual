@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:front_casillero_virtual/pantallas/login_pantalla.dart';
 import 'pantallas/home_pantalla.dart';
-import 'pantallas/editarperfil_pantalla.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Upper',
+      title: 'Mi App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        fontFamily: 'Roboto',
       ),
-      initialRoute: '/',
+      home: const HomePantalla(),
       routes: {
-        '/': (context) => const HomePantalla(),
-        '/editar-perfil': (context) => const EditarPerfilPantalla(),
+        '/home': (context) => const HomePantalla(),
+        // Puedes agregar más rutas aquí si lo necesitas
       },
     );
   }
