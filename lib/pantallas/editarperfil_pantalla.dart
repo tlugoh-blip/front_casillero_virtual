@@ -47,7 +47,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
             _emailController.text = userData['email'] ?? '';
             _direccionController.text = userData['direccionEntrega'] ?? '';
             _telefonoController.text = userData['telefono'] ?? '';
-            _usuarioController.text = userData['usuario'] ?? ''; // Assuming 'usuario' field exists
+            // _usuarioController.text = userData['usuario'] ?? ''; // Assuming 'usuario' field exists
             _base64Image = userData['imagen'] ?? '';
           });
         }
@@ -61,7 +61,12 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 100,
+      maxHeight: 100,
+      imageQuality: 50,
+    );
 
     if (pickedFile != null) {
       // Convertir a base64 directamente desde pickedFile
