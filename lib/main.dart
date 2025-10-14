@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'pantallas/home_pantalla.dart';
 import 'pantallas/editarperfil_pantalla.dart';
 
 void main() {
@@ -6,17 +7,22 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Mi App',
+      title: 'Upper',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        fontFamily: 'Roboto',
       ),
-      home: const EditarPerfilPantalla(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const HomePantalla(),
+        '/editar-perfil': (context) => const EditarPerfilPantalla(),
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'editarperfil_pantalla.dart';
 
 class HomePantalla extends StatelessWidget {
   const HomePantalla({Key? key}) : super(key: key);
@@ -19,10 +20,15 @@ class HomePantalla extends StatelessWidget {
                     'assets/imagenes/logo_upper.jpeg',
                     height: 48,
                   ),
-                  Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 36,
+                  IconButton(
+                    icon: const Icon(Icons.person, color: Colors.white, size: 36),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const EditarPerfilPantalla(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

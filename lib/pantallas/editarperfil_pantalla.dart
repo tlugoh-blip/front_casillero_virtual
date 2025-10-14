@@ -105,7 +105,7 @@ class EditarPerfilPantalla extends StatelessWidget {
                       onPressed: () {},
                       child: const Text(
                         'Guardar',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),
@@ -145,4 +145,3 @@ class EditarPerfilPantalla extends StatelessWidget {
     );
   }
 }
-
