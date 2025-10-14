@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../widgets/custom_button.dart';
 import '../api_service.dart';
 
@@ -131,6 +132,10 @@ class _LoginPantallaState extends State<LoginPantalla> {
                       try {
                         final response = await ApiService.login(email, contrasenia);
                         if (response.statusCode == 200) {
+                          // Parsear la respuesta JSON para obtener el ID del usuario
+                          final data = jsonDecode(response.body);
+                          final userId = data['id'];
+                          await ApiService.saveUserId(userId);
                           if (!context.mounted) return;
                           Navigator.pushReplacementNamed(context, '/home');
                           ScaffoldMessenger.of(context).showSnackBar(
