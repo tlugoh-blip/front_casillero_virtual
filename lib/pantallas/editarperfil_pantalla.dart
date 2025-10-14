@@ -48,8 +48,8 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
             _telefonoController.text = userData['telefono'] ?? '';
             _usuarioController.text = userData['usuario'] ?? '';
             // Aquí asignamos la imagen Base64 que viene del backend
-            _base64Image = userData['imagen'] ?? '';
-            print("IMAGEN BASE64 RECIBIDA: ${userData['imagen']?.substring(0, 100)}...");
+            _base64Image = (userData['imagen'] ?? '').replaceAll('\n', '').replaceAll('\r', '').trim();
+            print("IMAGEN BASE64 RECIBIDA (primeros 100 caracteres): ${userData['imagen']?.substring(0, 100)}...");
           });
         }
       }
@@ -177,6 +177,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                               'data:image/jpeg;base64,$_base64Image',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
+                                print('⚠️ Error al mostrar imagen: $error');
                                 return const Icon(
                                   Icons.person,
                                   size: 56,
