@@ -174,17 +174,32 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                           height: 112,
                           color: Colors.white,
                           child: _base64Image.isNotEmpty
-                              ? (_base64Image.startsWith('data:') || _base64Image.startsWith('http')
+                              ? (_base64Image.startsWith('http') || _base64Image.startsWith('https')
                                   ? Image.network(
                                       _base64Image,
                                       fit: BoxFit.cover,
                                       errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
                                     )
-                                  : Image.memory(
-                                      base64Decode(_base64Image),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                    ))
+                                  : (_base64Image.startsWith('data:')
+                                      ? (() {
+                                          // Handle data URL: extract base64 part after comma
+                                          final commaIndex = _base64Image.indexOf(',');
+                                          if (commaIndex != -1) {
+                                            final base64Data = _base64Image.substring(commaIndex + 1);
+                                            return Image.memory(
+                                              base64Decode(base64Data),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                            );
+                                          } else {
+                                            return const Icon(Icons.person, size: 56, color: Colors.grey);
+                                          }
+                                        })()
+                                      : Image.memory(
+                                          base64Decode(_base64Image),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
+                                        )))
                               : const Icon(Icons.person, size: 56, color: Colors.grey),
                         ),
                       ),
