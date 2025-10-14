@@ -1,7 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:front_casillero_virtual/api_service.dart';
 
-class EditarPerfilPantalla extends StatelessWidget {
+class EditarPerfilPantalla extends StatefulWidget {
   const EditarPerfilPantalla({Key? key}) : super(key: key);
+
+  @override
+  _EditarPerfilPantallaState createState() => _EditarPerfilPantallaState();
+}
+
+class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
+  final TextEditingController _nombreController = TextEditingController(text: 'Alex Martinez');
+  final TextEditingController _emailController = TextEditingController(text: 'alexmartinez@example.com');
+  final TextEditingController _direccionController = TextEditingController(text: 'Calle 123, Ciudad');
+  final TextEditingController _telefonoController = TextEditingController(text: '+1 234 567 8901');
+  final TextEditingController _usuarioController = TextEditingController(text: 'alex.m');
+
+  File? _imageFile;
+  String _base64Image = '';
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _emailController.dispose();
+    _direccionController.dispose();
+    _telefonoController.dispose();
+    _usuarioController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+      // Convertir a base64
+      final bytes = await _imageFile!.readAsBytes();
+      _base64Image = base64Encode(bytes);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userId = await ApiService.getUserId();
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Usuario no identificado')),
+        );
+        return;
+      }
+
+      final response = await ApiService.updateUsuario(
+        id: userId,
+        nombre: _nombreController.text,
+        email: _emailController.text,
+        telefono: _telefonoController.text,
+        direccionEntrega: _direccionController.text,
+        imagen: _base64Image,
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil actualizado exitosamente')),
+        );
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar perfil: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +139,9 @@ class EditarPerfilPantalla extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 56,
-                        backgroundImage: AssetImage('assets/imagenes/avatar_placeholder.png'), // Cambia por la imagen real
+                        backgroundImage: _imageFile != null
+                            ? FileImage(_imageFile!)
+                            : const AssetImage('assets/imagenes/avatar_placeholder.png') as ImageProvider,
                         backgroundColor: Colors.white,
                       ),
                       Positioned(
@@ -65,7 +154,7 @@ class EditarPerfilPantalla extends StatelessWidget {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
-                            onPressed: () {},
+                            onPressed: _pickImage,
                           ),
                         ),
                       ),
@@ -77,15 +166,15 @@ class EditarPerfilPantalla extends StatelessWidget {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          _buildTextField('Nombre', 'Alex Martinez'),
+                          _buildTextField('Nombre', _nombreController),
                           const SizedBox(height: 16),
-                          _buildTextField('Email', 'alexmartinez@example.com'),
+                          _buildTextField('Email', _emailController),
                           const SizedBox(height: 16),
-                          _buildTextField('Adreso de delivery', 'Calle 123, Ciudad'),
+                          _buildTextField('Adreso de delivery', _direccionController),
                           const SizedBox(height: 16),
-                          _buildTextField('Teléfono', '+1 234 567 8901'),
+                          _buildTextField('Teléfono', _telefonoController),
                           const SizedBox(height: 16),
-                          _buildTextField('Usuario', 'alex.m'),
+                          _buildTextField('Usuario', _usuarioController),
                         ],
                       ),
                     ),
@@ -102,11 +191,13 @@ class EditarPerfilPantalla extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 18),
                       ),
-                      onPressed: () {},
-                      child: const Text(
-                        'Guardar',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                      onPressed: _isLoading ? null : _saveProfile,
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Guardar',
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -119,7 +210,7 @@ class EditarPerfilPantalla extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String label, String hint) {
+  Widget _buildTextField(String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -129,7 +220,7 @@ class EditarPerfilPantalla extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextFormField(
-          initialValue: hint,
+          controller: controller,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Cambia esta URL por la de tu backend real
@@ -41,6 +42,42 @@ class ApiService {
       }),
     );
     return response;
+  }
+
+  // Función para actualizar usuario
+  static Future<http.Response> updateUsuario({
+    required int id,
+    required String nombre,
+    required String email,
+    required String telefono,
+    required String direccionEntrega,
+    required String imagen, // base64 string
+  }) async {
+    final url = Uri.parse('$baseUrl/usuario/update/$id');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'elNombre': nombre,
+        'email': email,
+        'telefono': telefono,
+        'direccionEntrega': direccionEntrega,
+        'imagen': imagen,
+      }),
+    );
+    return response;
+  }
+
+  // Función para obtener el ID del usuario guardado en shared preferences
+  static Future<int?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('userId');
+  }
+
+  // Función para guardar el ID del usuario en shared preferences (usar después del login)
+  static Future<void> saveUserId(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('userId', id);
   }
 
   // Puedes agregar más funciones para otros endpoints aquí
