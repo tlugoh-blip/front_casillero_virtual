@@ -172,43 +172,9 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                       width: 112,
                       height: 112,
                       color: Colors.white,
-                      child: Builder(
-                        builder: (context) {
-                          if (_base64Image.isEmpty) {
-                            // No hay imagen -> icono de persona
-                            return const Icon(
-                              Icons.person,
-                              size: 56,
-                              color: Colors.grey,
-                            );
-                          }
-
-                          try {
-                            // Si la imagen es una URL (http/https)
-                            if (_base64Image.startsWith('http')) {
-                              return Image.network(
-                                _base64Image,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.person,
-                                    size: 56,
-                                    color: Colors.grey,
-                                  );
-                                },
-                              );
-                            }
-
-                            // Si la cadena tiene prefijo data:image,... separar la parte base64
-                            final String base64Only = _base64Image.contains(',')
-                                ? _base64Image.split(',').last
-                                : _base64Image;
-
-                            // Decodificar y mostrar con Image.memory
-                            final bytes = base64Decode(base64Only);
-
-                            return Image.memory(
-                              bytes,
+                      child: _base64Image.isNotEmpty
+                          ? Image.memory(
+                              base64Decode(_base64Image),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return const Icon(
@@ -217,17 +183,12 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                                   color: Colors.grey,
                                 );
                               },
-                            );
-                          } catch (e) {
-                            // En caso de error al decodificar
-                            return const Icon(
+                            )
+                          : const Icon(
                               Icons.person,
                               size: 56,
                               color: Colors.grey,
-                            );
-                          }
-                        },
-                      ),
+                            ),
                     ),
                   ),
                   Positioned(
