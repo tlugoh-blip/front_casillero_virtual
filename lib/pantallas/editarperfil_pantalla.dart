@@ -47,7 +47,8 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
             _emailController.text = userData['email'] ?? '';
             _direccionController.text = userData['direccionEntrega'] ?? '';
             _telefonoController.text = userData['telefono'] ?? '';
-            // _usuarioController.text = userData['usuario'] ?? ''; // Assuming 'usuario' field exists
+            _usuarioController.text = userData['usuario'] ?? '';
+            // Aquí asignamos la imagen Base64 que viene del backend
             _base64Image = userData['imagen'] ?? '';
           });
         }
@@ -164,54 +165,81 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
               const SizedBox(height: 16),
               // Imagen de perfil con botón de cámara
               Stack(
+                alignment: Alignment.bottomRight,
                 children: [
                   ClipOval(
                     child: Container(
                       width: 112,
                       height: 112,
                       color: Colors.white,
-                      child: _base64Image.isNotEmpty
-                          ? (_base64Image.startsWith('http') || _base64Image.startsWith('https')
-                              ? Image.network(
-                                  _base64Image,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                )
-                              : (_base64Image.startsWith('data:')
-                                  ? (() {
-                                      // Handle data URL: extract base64 part after comma
-                                      final commaIndex = _base64Image.indexOf(',');
-                                      if (commaIndex != -1) {
-                                        final base64Data = _base64Image.substring(commaIndex + 1);
-                                        return Image.memory(
-                                          base64Decode(base64Data),
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                        );
-                                      } else {
-                                        return const Icon(Icons.person, size: 56, color: Colors.grey);
-                                      }
-                                    })()
-                              : Image.network(
-                                  'data:image/jpeg;base64,${_base64Image}',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, size: 56, color: Colors.grey),
-                                ))
-                          : const Icon(Icons.person, size: 56, color: Colors.grey),
+                      child: Builder(
+                        builder: (context) {
+                          if (_base64Image.isEmpty) {
+                            // No hay imagen -> icono de persona
+                            return const Icon(
+                              Icons.person,
+                              size: 56,
+                              color: Colors.grey,
+                            );
+                          }
+
+                          try {
+                            // Si la imagen es una URL (http/https)
+                            if (_base64Image.startsWith('http')) {
+                              return Image.network(
+                                _base64Image,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.person,
+                                    size: 56,
+                                    color: Colors.grey,
+                                  );
+                                },
+                              );
+                            }
+
+                            // Si la cadena tiene prefijo data:image,... separar la parte base64
+                            final String base64Only = _base64Image.contains(',')
+                                ? _base64Image.split(',').last
+                                : _base64Image;
+
+                            // Decodificar y mostrar con Image.memory
+                            final bytes = base64Decode(base64Only);
+
+                            return Image.memory(
+                              bytes,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.person,
+                                  size: 56,
+                                  color: Colors.grey,
+                                );
+                              },
+                            );
+                          } catch (e) {
+                            // En caso de error al decodificar
+                            return const Icon(
+                              Icons.person,
+                              size: 56,
+                              color: Colors.grey,
+                            );
+                          }
+                        },
+                      ),
                     ),
                   ),
                   Positioned(
-                    bottom: 4,
-                    right: 4,
+                    bottom: 0,
+                    right: 0,
                     child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.camera_alt, color: Colors.white, size: 24),
+                        icon: const Icon(Icons.camera_alt),
                         onPressed: _pickImage,
                       ),
                     ),
