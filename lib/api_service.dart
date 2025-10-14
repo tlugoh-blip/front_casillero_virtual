@@ -80,5 +80,16 @@ class ApiService {
     await prefs.setInt('userId', id);
   }
 
+  // Función para obtener datos del usuario por ID
+  static Future<Map<String, dynamic>?> getUsuario(int id) async {
+    final url = Uri.parse('$baseUrl/usuario/$id');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return null;
+    }
+  }
+
   // Puedes agregar más funciones para otros endpoints aquí
 }

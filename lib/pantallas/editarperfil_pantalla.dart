@@ -12,15 +12,21 @@ class EditarPerfilPantalla extends StatefulWidget {
 }
 
 class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
-  final TextEditingController _nombreController = TextEditingController(text: 'Alex Martinez');
-  final TextEditingController _emailController = TextEditingController(text: 'alexmartinez@example.com');
-  final TextEditingController _direccionController = TextEditingController(text: 'Calle 123, Ciudad');
-  final TextEditingController _telefonoController = TextEditingController(text: '+1 234 567 8901');
-  final TextEditingController _usuarioController = TextEditingController(text: 'alex.m');
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _direccionController = TextEditingController();
+  final TextEditingController _telefonoController = TextEditingController();
+  final TextEditingController _usuarioController = TextEditingController();
 
   File? _imageFile;
   String _base64Image = '';
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
 
   @override
   void dispose() {
@@ -30,6 +36,29 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     _telefonoController.dispose();
     _usuarioController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userId = await ApiService.getUserId();
+      if (userId != null) {
+        final userData = await ApiService.getUsuario(userId);
+        if (userData != null) {
+          setState(() {
+            _nombreController.text = userData['elNombre'] ?? '';
+            _emailController.text = userData['email'] ?? '';
+            _direccionController.text = userData['direccionEntrega'] ?? '';
+            _telefonoController.text = userData['telefono'] ?? '';
+            _usuarioController.text = userData['usuario'] ?? ''; // Assuming 'usuario' field exists
+            _base64Image = userData['imagen'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar datos: $e')),
+      );
+    }
   }
 
   Future<void> _pickImage() async {
@@ -137,11 +166,17 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      CircleAvatar(
-                        radius: 56,
-                        backgroundColor: Colors.white,
-                        backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
-                        child: _imageFile == null ? const Icon(Icons.person, size: 56, color: Colors.grey) : null,
+                      ClipOval(
+                        child: Container(
+                          width: 112,
+                          height: 112,
+                          color: Colors.white,
+                          child: _imageFile != null
+                              ? Image.file(_imageFile!, fit: BoxFit.cover)
+                              : _base64Image.isNotEmpty
+                                  ? Image.memory(base64Decode(_base64Image), fit: BoxFit.cover)
+                                  : const Icon(Icons.person, size: 56, color: Colors.grey),
+                        ),
                       ),
                       Positioned(
                         bottom: 4,
