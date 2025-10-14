@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'package:front_casillero_virtual/api_service.dart';
 
 class EditarPerfilPantalla extends StatefulWidget {
@@ -18,7 +17,6 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
   final TextEditingController _telefonoController = TextEditingController();
   final TextEditingController _usuarioController = TextEditingController();
 
-  File? _imageFile;
   String _base64Image = '';
   bool _isLoading = false;
 
@@ -66,12 +64,11 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
+      // Convertir a base64 directamente desde pickedFile
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _base64Image = base64Encode(bytes);
       });
-      // Convertir a base64
-      final bytes = await _imageFile!.readAsBytes();
-      _base64Image = base64Encode(bytes);
     }
   }
 
@@ -171,11 +168,9 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                           width: 112,
                           height: 112,
                           color: Colors.white,
-                          child: _imageFile != null
-                              ? Image.file(_imageFile!, fit: BoxFit.cover)
-                              : _base64Image.isNotEmpty
-                                  ? Image.memory(base64Decode(_base64Image), fit: BoxFit.cover)
-                                  : const Icon(Icons.person, size: 56, color: Colors.grey),
+                          child: _base64Image.isNotEmpty
+                              ? Image.memory(base64Decode(_base64Image), fit: BoxFit.cover)
+                              : const Icon(Icons.person, size: 56, color: Colors.grey),
                         ),
                       ),
                       Positioned(
