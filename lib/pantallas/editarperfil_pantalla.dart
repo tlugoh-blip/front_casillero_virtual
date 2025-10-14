@@ -139,10 +139,9 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                     children: [
                       CircleAvatar(
                         radius: 56,
-                        backgroundImage: _imageFile != null
-                            ? FileImage(_imageFile!)
-                            : const AssetImage('assets/imagenes/avatar_placeholder.png') as ImageProvider,
                         backgroundColor: Colors.white,
+                        backgroundImage: _imageFile != null ? FileImage(_imageFile!) : null,
+                        child: _imageFile == null ? const Icon(Icons.person, size: 56, color: Colors.grey) : null,
                       ),
                       Positioned(
                         bottom: 4,
