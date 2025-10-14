@@ -164,7 +164,6 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
               const SizedBox(height: 16),
               // Imagen de perfil con botón de cámara
               Stack(
-                alignment: Alignment.bottomRight,
                 children: [
                   ClipOval(
                     child: Container(
@@ -205,6 +204,8 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                     bottom: 4,
                     right: 4,
                     child: Container(
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         color: Colors.blue,
                         shape: BoxShape.circle,
