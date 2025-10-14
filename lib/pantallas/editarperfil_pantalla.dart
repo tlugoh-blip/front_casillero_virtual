@@ -44,12 +44,12 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
         if (userData != null) {
           setState(() {
             _nombreController.text = userData['elNombre'] ?? '';
-            _emailController.text = userData['email'] ?? '';
-            _direccionController.text = userData['direccionEntrega'] ?? '';
+            _emailController.text = userData['direccionEntrega'] ?? '';
             _telefonoController.text = userData['telefono'] ?? '';
             _usuarioController.text = userData['usuario'] ?? '';
             // Aquí asignamos la imagen Base64 que viene del backend
             _base64Image = userData['imagen'] ?? '';
+            print("IMAGEN BASE64 RECIBIDA: ${userData['imagen']?.substring(0, 100)}...");
           });
         }
       }
