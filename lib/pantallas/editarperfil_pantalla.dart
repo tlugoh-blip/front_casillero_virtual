@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:front_casillero_virtual/api_service.dart';
 
@@ -60,22 +59,11 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     }
   }
 
+  // El método para seleccionar imagen no está disponible en web
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 100,
-      maxHeight: 100,
-      imageQuality: 50,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidad no disponible en web')),
     );
-
-    if (pickedFile != null) {
-      // Convertir a base64 directamente desde pickedFile
-      final bytes = await pickedFile.readAsBytes();
-      setState(() {
-        _base64Image = base64Encode(bytes);
-      });
-    }
   }
 
   Future<void> _saveProfile() async {
@@ -136,10 +124,10 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Logo Upper
+                  // Logo Upper (nuevo upperblanco más grande)
                   Image.asset(
-                    'assets/imagenes/logo_upper.jpeg',
-                    height: 48,
+                    'assets/imagenes/upperblanco.png',
+                    height: 79, // Aumentado el tamaño
                     fit: BoxFit.contain,
                   ),
                   // Botón cerrar
@@ -202,7 +190,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.camera_alt),
-                        onPressed: _pickImage,
+                        onPressed: _pickImage, // Solo muestra mensaje
                       ),
                     ),
                   ),

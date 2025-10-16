@@ -37,24 +37,21 @@ class _LoginPantallaState extends State<LoginPantalla> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 4), // Mucho menos espacio arriba del logo
-                // Logo
+                const SizedBox(height: 4),
                 Image.asset(
                   'assets/imagenes/logo_upper.jpeg',
                   height: 240,
                 ),
-                const SizedBox(height: 0), // Sin espacio debajo del logo
-                // Título
+                const SizedBox(height: 0),
                 const Text(
                   'Bienvenido',
                   style: TextStyle(
-                    fontSize: 26, // Letra aún más pequeña
+                    fontSize: 26,
                     fontWeight: FontWeight.w400,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8), // Menos espacio debajo del título
-                // Subtítulo
+                const SizedBox(height: 8),
                 const Text(
                   'Ingresa tus datos para continuar.',
                   style: TextStyle(
@@ -63,7 +60,8 @@ class _LoginPantallaState extends State<LoginPantalla> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20), // Menos espacio antes de los campos
+                const SizedBox(height: 20),
+
                 // Campo de correo
                 TextField(
                   controller: correoController,
@@ -71,8 +69,8 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     hintText: 'Correo',
                     filled: true,
                     fillColor: const Color(0xFFF5F6FA),
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 18, horizontal: 16),
+                    contentPadding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -80,6 +78,7 @@ class _LoginPantallaState extends State<LoginPantalla> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
                 // Campo de contraseña
                 TextField(
                   controller: claveController,
@@ -88,8 +87,8 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     hintText: 'Contraseña',
                     filled: true,
                     fillColor: const Color(0xFFF5F6FA),
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 18, horizontal: 16),
+                    contentPadding:
+                    const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -107,7 +106,26 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     ),
                   ),
                 ),
+
+                const SizedBox(height: 12),
+
+                // 🔹 Texto de "¿Olvidaste tu contraseña?" clickeable
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamed(context, '/olvidocontrasena');
+                  },
+                  child: const Text(
+                    '¿Olvidaste tu contraseña? Restablécela aquí',
+                    style: TextStyle(
+                      color: Color(0xFF23408E),
+                      fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+
                 const SizedBox(height: 24),
+
                 // Botón de iniciar sesión
                 SizedBox(
                   width: double.infinity,
@@ -125,21 +143,24 @@ class _LoginPantallaState extends State<LoginPantalla> {
                       final contrasenia = claveController.text.trim();
                       if (email.isEmpty || contrasenia.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Por favor, completa todos los campos.')),
+                          const SnackBar(
+                              content:
+                              Text('Por favor, completa todos los campos.')),
                         );
                         return;
                       }
                       try {
-                        final response = await ApiService.login(email, contrasenia);
+                        final response =
+                        await ApiService.login(email, contrasenia);
                         if (response.statusCode == 200) {
-                          // Parsear la respuesta JSON para obtener el ID del usuario
                           final data = jsonDecode(response.body);
                           final userId = data['id'];
                           await ApiService.saveUserId(userId);
                           if (!context.mounted) return;
                           Navigator.pushReplacementNamed(context, '/home');
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('¡Conexión exitosa!')),
+                            const SnackBar(
+                                content: Text('¡Conexión exitosa!')),
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -148,7 +169,8 @@ class _LoginPantallaState extends State<LoginPantalla> {
                         }
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error de conexión: ' + e.toString())),
+                          SnackBar(
+                              content: Text('Error de conexión: ' + e.toString())),
                         );
                       }
                     },
@@ -162,7 +184,9 @@ class _LoginPantallaState extends State<LoginPantalla> {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 24),
+
                 // Texto de registro
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

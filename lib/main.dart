@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:front_casillero_virtual/pantallas/login_pantalla.dart';
-import 'pantallas/home_pantalla.dart';
-import 'pantallas/welcome_pantalla.dart';
+import 'pantallas/login_pantalla.dart';
+import 'pantallas/olvidoncontraseña_pantalla.dart'; // Asegúrate de que el nombre del archivo esté bien escrito
 
 void main() {
   runApp(const MyApp());
@@ -14,15 +13,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Mi App',
+      title: 'Casillero Virtual',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const WelcomePantalla(),
+
+      // Pantalla inicial
+      initialRoute: '/login',
+
+      // Rutas de navegación
       routes: {
-        '/home': (context) => const HomePantalla(),
-        '/welcome': (context) => const WelcomePantalla(),
-        // Puedes agregar más rutas aquí si lo necesitas
+        '/login': (context) => const LoginPantalla(),
+        '/olvidocontrasena': (context) => const OlvidoContrasenaPantalla(),
       },
     );
   }
