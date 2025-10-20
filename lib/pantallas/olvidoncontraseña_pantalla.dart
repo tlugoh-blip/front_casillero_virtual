@@ -52,12 +52,31 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset(
-                    'assets/imagenes/upperblanco.png',
-                    height: 79,
-                    fit: BoxFit.contain,
+                  // Botón para volver a Login
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                    onPressed: () {
+                      // Navegar a la pantalla de login reemplazando la actual
+                      Navigator.pushReplacementNamed(context, '/login');
+                    },
                   ),
-                  const Icon(Icons.person, color: Colors.white, size: 32),
+
+                  // Logo centrado
+                  Expanded(
+                    child: Center(
+                      child: Image.asset(
+                        'assets/imagenes/upperblanco.png',
+                        height: 85,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+
+                  // Icono de perfil (espaciado fijo para mantener equilibrio visual)
+                  const SizedBox(
+                    width: 48,
+                    child: Center(child: Icon(Icons.person, color: Colors.white, size: 32)),
+                  ),
                 ],
               ),
 
@@ -68,7 +87,7 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
                 "Olvidé contraseña",
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 32,
+                  fontSize: 26, // reducido de 32 a 26
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -148,9 +167,9 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: "ejemplo@correo.com",
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+            hintStyle: TextStyle(color: Color.fromRGBO(255, 255, 255, 0.5)),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.15),
+            fillColor: const Color.fromRGBO(255, 255, 255, 0.15),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,

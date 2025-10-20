@@ -56,7 +56,7 @@ class HomePantalla extends StatelessWidget {
                       'Explora marcas, outlets y ofertas',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: const Color.fromRGBO(255, 255, 255, 0.8),
                         fontSize: 18,
                       ),
                     ),
@@ -128,11 +128,51 @@ class HomePantalla extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: const [
-                    _NavBarItem(icon: Icons.home, label: 'Casillero', selected: true),
-                    _NavBarItem(icon: Icons.search, label: 'Buscar'),
-                    _NavBarItem(icon: Icons.payment, label: 'Pagos'),
-                    _NavBarItem(icon: Icons.history, label: 'Historial'),
+                  children: [
+                    // Cambié la etiqueta a 'Home' y quité const para permitir callbacks
+                    _NavBarItem(
+                      icon: Icons.home,
+                      label: 'Home',
+                      selected: true,
+                      onTap: () {
+                        // Podrías navegar a la misma pantalla /home o refrescar
+                        Navigator.pushReplacementNamed(context, '/home');
+                      },
+                    ),
+
+                    _NavBarItem(
+                      icon: Icons.search,
+                      label: 'Buscar',
+                      onTap: () {
+                        // Implementa búsqueda cuando exista la pantalla
+                      },
+                    ),
+
+                    // Reinsertamos el ítem de Pagos
+                    _NavBarItem(
+                      icon: Icons.payment,
+                      label: 'Pagos',
+                      onTap: () {
+                        Navigator.pushNamed(context, '/pagos');
+                      },
+                    ),
+
+                    // Nuevo icono para navegar al casillero del usuario
+                    _NavBarItem(
+                      icon: Icons.inventory, // icono elegido
+                      label: 'Mi casillero',
+                      onTap: () {
+                        Navigator.pushNamed(context, '/casillero');
+                      },
+                    ),
+
+                    _NavBarItem(
+                      icon: Icons.history,
+                      label: 'Historial',
+                      onTap: () {
+                        // Implementa historial cuando exista la pantalla
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -147,7 +187,7 @@ class HomePantalla extends StatelessWidget {
     return Container(
       width: 140,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: const Color.fromRGBO(255, 255, 255, 0.08),
         borderRadius: BorderRadius.circular(18),
       ),
       child: ClipRRect(
@@ -165,33 +205,39 @@ class _NavBarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
+  final VoidCallback? onTap;
 
   const _NavBarItem({
     required this.icon,
     required this.label,
     this.selected = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: selected ? Color(0xFF2D7DFE) : Colors.white,
-          size: 28,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: selected ? Color(0xFF2D7DFE) : Colors.white,
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+    // Hacemos el ítem interactivo
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: selected ? const Color(0xFF2D7DFE) : Colors.white,
+            size: 28,
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? const Color(0xFF2D7DFE) : Colors.white,
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
