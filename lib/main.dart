@@ -6,6 +6,7 @@ import 'pantallas/Registrar_pantalla.dart';
 import 'pantallas/casillero_pantalla.dart';
 import 'pantallas/pagos_pantalla.dart';
 import 'pantallas/añadir_articulo.dart'; // ✅ cambiado (sin ñ y con guion bajo)
+import 'pantallas/welcome_pantalla.dart'; // <-- agregado
 
 void main() {
   runApp(const MyApp());
@@ -22,9 +23,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      initialRoute: '/',
+      initialRoute: '/welcome',
 
       routes: {
+        '/welcome': (context) => const WelcomePantalla(),
         '/': (context) => const LauncherPantalla(),
         '/login': (context) => const LoginPantalla(),
         '/olvidocontrasena': (context) => const OlvidoContrasenaPantalla(),
@@ -74,8 +76,7 @@ class LauncherPantalla extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/olvidocontrasena'),
+                  onPressed: () => Navigator.pushNamed(context, '/olvidocontrasena'),
                   child: const Text('Abrir Olvidé contraseña'),
                 ),
               ),

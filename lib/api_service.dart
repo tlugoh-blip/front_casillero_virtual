@@ -44,6 +44,82 @@ class ApiService {
     return response;
   }
 
+  // Función para buscar artículos. Se puede buscar por texto (query) o por categoria.
+  static Future<http.Response> searchArticles({String? query, String? categoria}) async {
+    final Map<String, String> params = {};
+    if (query != null && query.trim().isNotEmpty) params['q'] = query.trim();
+    if (categoria != null && categoria.trim().isNotEmpty) params['categoria'] = categoria.trim();
+
+    Uri uri = Uri.parse('$baseUrl/articulo/search');
+    if (params.isNotEmpty) uri = uri.replace(queryParameters: params);
+
+    final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
+    return response;
+  }
+
+  // Función para agregar artículo
+  // Enviamos únicamente los campos esperados por la entidad `articulo` del backend:
+  // elNombre, talla, categoria (minúscula), valorUnitario (int COP), url, peso (double), color
+  static Future<http.Response> addArticle({
+    required String nombre,
+    required String talla,
+    required String color,
+    required String categoria,
+    required String url,
+    required int valorUnitario, // en COP, entero
+    required double peso, // en kg
+  }) async {
+    final uri = Uri.parse('$baseUrl/articulo/add');
+
+    final Map<String, dynamic> body = {
+      'nombre': nombre,
+      'talla': talla,
+      // enviar categoria en minúsculas para consistencia
+      'categoria': categoria.toLowerCase(),
+      'valorUnitario': valorUnitario,
+      // 'url': url, // añadiremos condicionalmente
+      'peso': peso,
+      'color': color,
+    };
+
+    // Si la URL es una data URL (base64) la omitimos y la dejamos que el backend trate otro flujo de imagen
+    try {
+      if (url != null && url.trim().isNotEmpty && !url.trim().toLowerCase().startsWith('data:')) {
+        body['url'] = url;
+      } else if (url != null && url.trim().toLowerCase().startsWith('data:')) {
+        // Debug: notificar que omitimos la data URL para evitar errores de tamaño
+        print('[ApiService.addArticle] Omitiendo campo url porque contiene una data URL (base64).');
+      }
+    } catch (_) {}
+
+    // Debug: imprimir body antes de enviar (quitar en producción)
+    try {
+      print('[ApiService.addArticle] POST $uri');
+      print('[ApiService.addArticle] body: ' + jsonEncode(body));
+    } catch (_) {}
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    // Debug: imprimir respuesta del servidor
+    try {
+      print('[ApiService.addArticle] response: ${response.statusCode}');
+      print('[ApiService.addArticle] response body: ${response.body}');
+      try {
+        final parsed = jsonDecode(response.body);
+        print('[ApiService.addArticle] parsed response: $parsed');
+      } catch (_) {}
+    } catch (_) {}
+
+    return response;
+  }
+
   // Función para actualizar usuario
   static Future<http.Response> updateUsuario({
     required int id,

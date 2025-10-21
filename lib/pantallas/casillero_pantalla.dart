@@ -1,33 +1,143 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:front_casillero_virtual/api_service.dart';
 import 'editarperfil_pantalla.dart';
 
-class CasilleroPantalla extends StatelessWidget {
+class CasilleroPantalla extends StatefulWidget {
   const CasilleroPantalla({Key? key}) : super(key: key);
+
+  @override
+  State<CasilleroPantalla> createState() => _CasilleroPantallaState();
+}
+
+class _CasilleroPantallaState extends State<CasilleroPantalla> {
+  final TextEditingController _searchController = TextEditingController();
+  bool _loading = false;
+  List<Map<String, dynamic>> _items = [];
+
+  // Lista de categorías disponibles (ajustar si tu backend tiene otras)
+  final List<String> _categorias = ['Todos', 'Ropa', 'Calzado', 'Accesorios'];
+
+  @override
+  void initState() {
+    super.initState();
+    // cargar items por defecto (puedes dejar vacío o hacer una búsqueda inicial)
+    _loadDefaultItems();
+  }
+
+  void _loadDefaultItems() {
+    setState(() {
+      _items = [
+        {
+          'asset': 'assets/imagenes/tenisnike.png',
+          'nombre': 'Zapatillas Nike Blancas',
+          'precio': 'S/. 250',
+          'stock': '10',
+        },
+        {
+          'asset': 'assets/imagenes/pantaloneta.png',
+          'nombre': 'Pantaloneta Beige',
+          'precio': 'S/. 150',
+          'stock': '5',
+        },
+        {
+          'asset': 'assets/imagenes/hoodienike.png',
+          'nombre': 'Hoodie Nike Morado',
+          'precio': 'S/. 350',
+          'stock': '3',
+        },
+      ];
+    });
+  }
+
+  // Ahora aceptamos búsqueda por texto o por categoría
+  Future<void> _search({String? query, String? categoria}) async {
+    // si no hay query ni categoria, no hacemos nada
+    if ((query == null || query.trim().isEmpty) && (categoria == null || categoria.trim().isEmpty)) return;
+    setState(() => _loading = true);
+    try {
+      final resp = await ApiService.searchArticles(query: query, categoria: (categoria == 'Todos' ? null : categoria));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) {
+          setState(() {
+            _items = data.map<Map<String, dynamic>>((e) {
+              return {
+                'asset': e['urlImagen'] ?? e['imagen'] ?? '',
+                'nombre': e['nombre'] ?? e['titulo'] ?? 'Sin nombre',
+                'precio': e['precio']?.toString() ?? '',
+                'stock': e['stock']?.toString() ?? '',
+                'raw': e,
+              };
+            }).toList();
+          });
+        } else {
+          // Si el backend devuelve otro formato, intenta manejarlo o muestra vacío
+          setState(() => _items = []);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Respuesta inesperada del servidor')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al buscar: ${resp.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openAnadirArticulo() async {
+    final res = await Navigator.pushNamed(context, '/anadirarticulo');
+    // si vuelve con verdadero, refrescar la lista (repetir última búsqueda)
+    if (res == true) {
+      if (_searchController.text.trim().isNotEmpty) {
+        await _search(query: _searchController.text.trim());
+      } else {
+        // opcional: recargar default o hacer búsqueda vacía
+        _loadDefaultItems();
+      }
+    }
+  }
+
+  // Muestra un menú modal con categorías y busca por la seleccionada
+  void _showCategoryMenu() async {
+    final selected = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _categorias.map((cat) {
+              return ListTile(
+                title: Text(cat),
+                onTap: () => Navigator.pop(context, cat),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      // Mostrar la categoría seleccionada en el campo de búsqueda (opcional)
+      setState(() {
+        _searchController.text = selected == 'Todos' ? '' : selected;
+      });
+
+      // Ejecutar la búsqueda por categoría
+      await _search(categoria: selected == 'Todos' ? null : selected);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
-
-    final items = [
-      {
-        'asset': 'assets/imagenes/tenisnike.png',
-        'nombre': 'Zapatillas Nike Blancas',
-        'precio': 'S/. 250',
-        'stock': '10',
-      },
-      {
-        'asset': 'assets/imagenes/pantaloneta.png',
-        'nombre': 'Pantaloneta Beige',
-        'precio': 'S/. 150',
-        'stock': '5',
-      },
-      {
-        'asset': 'assets/imagenes/hoodienike.png',
-        'nombre': 'Hoodie Nike Morado',
-        'precio': 'S/. 350',
-        'stock': '3',
-      },
-    ];
 
     return Scaffold(
       backgroundColor: azulFondo,
@@ -94,10 +204,7 @@ class CasilleroPantalla extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  onPressed: () {
-                    // ✅ Abre la pantalla de Añadir Artículo
-                    Navigator.pushNamed(context, '/anadirarticulo');
-                  },
+                  onPressed: _openAnadirArticulo,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
@@ -121,21 +228,47 @@ class CasilleroPantalla extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
+                    // Search field
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'Buscar productos...',
+                                suffixIcon: _loading
+                                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator())
+                                    : IconButton(
+                                        icon: const Icon(Icons.search),
+                                        onPressed: _showCategoryMenu,
+                                      ),
+                              ),
+                              onSubmitted: (v) => _search(query: v),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     // Lista de artículos
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final it = items[index];
-                          return _ArticuloCard(
-                            imagenAsset: it['asset']!,
-                            nombre: it['nombre']!,
-                            precio: it['precio']!,
-                            stock: it['stock']!,
-                          );
-                        },
-                      ),
+                      child: _items.isEmpty
+                          ? const Center(child: Text('No hay artículos', style: TextStyle(color: Colors.black54)))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _items.length,
+                              itemBuilder: (context, index) {
+                                final it = _items[index];
+                                return _ArticuloCard(
+                                  imagenAsset: it['asset'] ?? '',
+                                  nombre: it['nombre'] ?? 'Sin nombre',
+                                  precio: it['precio'] ?? '',
+                                  stock: it['stock'] ?? '',
+                                );
+                              },
+                            ),
                     ),
 
                     // 🔹 BOTÓN "IR A PAGAR"
@@ -191,17 +324,13 @@ class CasilleroPantalla extends StatelessWidget {
                     label: 'Home',
                     onTap: () => Navigator.pushNamed(context, '/home'),
                   ),
-                  _NavBarItem(icon: Icons.search, label: 'Buscar'),
+                  _NavBarItem(icon: Icons.search, label: 'Buscar', onTap: () {}),
                   _NavBarItem(
                     icon: Icons.payment,
                     label: 'Pagos',
                     onTap: () => Navigator.pushNamed(context, '/pagos'),
                   ),
-                  _NavBarItem(
-                    icon: Icons.inventory,
-                    label: 'Mi casillero',
-                    selected: true,
-                  ),
+                  _NavBarItem(icon: Icons.inventory, label: 'Mi casillero', selected: true),
                   _NavBarItem(icon: Icons.history, label: 'Historial'),
                 ],
               ),
@@ -232,6 +361,36 @@ class _ArticuloCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
 
+    Widget imageWidget;
+    if (imagenAsset.startsWith('http')) {
+      imageWidget = Image.network(
+        imagenAsset,
+        width: 90,
+        height: 90,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 90,
+          height: 90,
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image),
+        ),
+      );
+    } else if (imagenAsset.isNotEmpty) {
+      imageWidget = Image.asset(
+        imagenAsset,
+        width: 90,
+        height: 90,
+        fit: BoxFit.cover,
+      );
+    } else {
+      imageWidget = Container(
+        width: 90,
+        height: 90,
+        color: Colors.grey[200],
+        child: const Icon(Icons.image),
+      );
+    }
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -240,15 +399,7 @@ class _ArticuloCard extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                imagenAsset,
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-              ),
-            ),
+            ClipRRect(borderRadius: BorderRadius.circular(12), child: imageWidget),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
