@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'models/articulo.dart';
 
 class ApiService {
   // Cambia esta URL por la de tu backend real
@@ -94,5 +95,26 @@ class ApiService {
     }
   }
 
-  // Puedes agregar más funciones para otros endpoints aquí
+  // Función para añadir artículo a un casillero (usando userId como casilleroId)
+  static Future<http.Response> addArticulo(int casilleroId, Articulo articulo) async {
+    final url = Uri.parse('$baseUrl/articulo/add/$casilleroId');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(articulo.toJson()),
+    );
+    return response;
+  }
+
+  // Función para obtener artículos por casillero (usando userId como casilleroId)
+  static Future<List<Articulo>> getArticulosPorCasillero(int casilleroId) async {
+    final url = Uri.parse('$baseUrl/articulo/get/$casilleroId');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Articulo.fromJson(json)).toList();
+    } else {
+      throw Exception('Error al obtener artículos: ${response.statusCode}');
+    }
+  }
 }

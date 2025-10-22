@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../api_service.dart';
+import '../models/articulo.dart';
 
 class AnadirArticuloPantalla extends StatefulWidget {
   const AnadirArticuloPantalla({Key? key}) : super(key: key);
@@ -15,6 +17,8 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
 
   String? _categoriaSeleccionada;
   final List<String> _categorias = ['Ropa', 'Calzado', 'Accesorios'];
+
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -141,19 +145,13 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content:
-                              Text('Artículo guardado correctamente'),
-                            ),
-                          );
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Guardar',
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        onPressed: _isLoading ? null : _guardarArticulo,
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'Guardar',
+                                style: TextStyle(color: Colors.white),
+                              ),
                       ),
                     ),
                   ],
@@ -182,5 +180,63 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
         ),
       ),
     );
+  }
+
+  Future<void> _guardarArticulo() async {
+    final nombre = _nombreController.text.trim();
+    final talla = _tallaController.text.trim();
+    final color = _colorController.text.trim();
+    final categoria = _categoriaSeleccionada;
+    final urlImagen = _urlController.text.trim();
+
+    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || categoria == null || urlImagen.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, completa todos los campos.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userId = await ApiService.getUserId();
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario no autenticado.')),
+        );
+        return;
+      }
+
+      final articulo = Articulo(
+        nombre: nombre,
+        talla: talla,
+        color: color,
+        categoria: categoria,
+        urlImagen: urlImagen,
+      );
+
+      final response = await ApiService.addArticulo(userId, articulo);
+
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Artículo guardado correctamente')),
+        );
+        Navigator.pop(context, true); // Retornar true para indicar éxito
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar artículo: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }

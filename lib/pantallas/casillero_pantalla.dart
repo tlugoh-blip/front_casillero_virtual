@@ -1,33 +1,55 @@
 import 'package:flutter/material.dart';
 import 'editarperfil_pantalla.dart';
+import '../api_service.dart';
+import '../models/articulo.dart';
 
-class CasilleroPantalla extends StatelessWidget {
+class CasilleroPantalla extends StatefulWidget {
   const CasilleroPantalla({Key? key}) : super(key: key);
+
+  @override
+  State<CasilleroPantalla> createState() => _CasilleroPantallaState();
+}
+
+class _CasilleroPantallaState extends State<CasilleroPantalla> {
+  List<Articulo> _articulos = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarArticulos();
+  }
+
+  Future<void> _cargarArticulos() async {
+    try {
+      final userId = await ApiService.getUserId();
+      if (userId != null) {
+        final articulos = await ApiService.getArticulosPorCasillero(userId);
+        setState(() {
+          _articulos = articulos;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario no autenticado.')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar artículos: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
-
-    final items = [
-      {
-        'asset': 'assets/imagenes/tenisnike.png',
-        'nombre': 'Zapatillas Nike Blancas',
-        'precio': 'S/. 250',
-        'stock': '10',
-      },
-      {
-        'asset': 'assets/imagenes/pantaloneta.png',
-        'nombre': 'Pantaloneta Beige',
-        'precio': 'S/. 150',
-        'stock': '5',
-      },
-      {
-        'asset': 'assets/imagenes/hoodienike.png',
-        'nombre': 'Hoodie Nike Morado',
-        'precio': 'S/. 350',
-        'stock': '3',
-      },
-    ];
 
     return Scaffold(
       backgroundColor: azulFondo,
@@ -94,9 +116,12 @@ class CasilleroPantalla extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     // ✅ Abre la pantalla de Añadir Artículo
-                    Navigator.pushNamed(context, '/anadirarticulo');
+                    final result = await Navigator.pushNamed(context, '/anadirarticulo');
+                    if (result == true) {
+                      _cargarArticulos(); // Recargar artículos después de añadir uno
+                    }
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -123,19 +148,24 @@ class CasilleroPantalla extends StatelessWidget {
                   children: [
                     // Lista de artículos
                     Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final it = items[index];
-                          return _ArticuloCard(
-                            imagenAsset: it['asset']!,
-                            nombre: it['nombre']!,
-                            precio: it['precio']!,
-                            stock: it['stock']!,
-                          );
-                        },
-                      ),
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _articulos.isEmpty
+                              ? const Center(child: Text('No tienes artículos aún.'))
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _articulos.length,
+                                  itemBuilder: (context, index) {
+                                    final articulo = _articulos[index];
+                                    return _ArticuloCard(
+                                      imagenUrl: articulo.urlImagen,
+                                      nombre: articulo.nombre,
+                                      talla: articulo.talla,
+                                      color: articulo.color,
+                                      categoria: articulo.categoria,
+                                    );
+                                  },
+                                ),
                     ),
 
                     // 🔹 BOTÓN "IR A PAGAR"
@@ -215,17 +245,19 @@ class CasilleroPantalla extends StatelessWidget {
 
 // 🔹 CARD DE PRODUCTO
 class _ArticuloCard extends StatelessWidget {
-  final String imagenAsset;
+  final String imagenUrl;
   final String nombre;
-  final String precio;
-  final String stock;
+  final String talla;
+  final String color;
+  final String categoria;
 
   const _ArticuloCard({
     Key? key,
-    required this.imagenAsset,
+    required this.imagenUrl,
     required this.nombre,
-    required this.precio,
-    required this.stock,
+    required this.talla,
+    required this.color,
+    required this.categoria,
   }) : super(key: key);
 
   @override
@@ -242,11 +274,12 @@ class _ArticuloCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                imagenAsset,
+              child: Image.network(
+                imagenUrl,
                 width: 90,
                 height: 90,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 90),
               ),
             ),
             const SizedBox(width: 16),
@@ -256,9 +289,11 @@ class _ArticuloCard extends StatelessWidget {
                 children: [
                   Text(nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(precio, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text('Talla: $talla', style: const TextStyle(fontSize: 14, color: Colors.black54)),
                   const SizedBox(height: 4),
-                  Text('Stock: $stock', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text('Color: $color', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text('Categoría: $categoria', style: const TextStyle(fontSize: 14, color: Colors.black54)),
                 ],
               ),
             ),
