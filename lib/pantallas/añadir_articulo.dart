@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../models/articulo.dart';
+import '../widgets/currency_converter.dart';
 
 class AnadirArticuloPantalla extends StatefulWidget {
   const AnadirArticuloPantalla({Key? key}) : super(key: key);
@@ -12,7 +13,10 @@ class AnadirArticuloPantalla extends StatefulWidget {
 class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _tallaController = TextEditingController();
+  final TextEditingController _descripcionController = TextEditingController();
   final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _precioController = TextEditingController();
+  final TextEditingController _pesoController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
 
   String? _categoriaSeleccionada;
@@ -78,7 +82,58 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                     const SizedBox(height: 16),
                     _buildTextField('Talla', _tallaController),
                     const SizedBox(height: 16),
+                    _buildTextField('Descripción', _descripcionController),
+                    const SizedBox(height: 16),
                     _buildTextField('Color', _colorController),
+                    const SizedBox(height: 16),
+
+                    // Campo Precio con conversor COP a USD
+                    TextField(
+                      controller: _precioController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Precio (COP)',
+                        labelStyle: TextStyle(color: Colors.white),
+                        suffixIcon: Icon(Icons.attach_money, color: Colors.white),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {});
+                      },
+                    ),
+                    if (_precioController.text.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Equivalente: ${CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(int.tryParse(_precioController.text) ?? 0))}',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+
+                    // Campo Peso
+                    TextField(
+                      controller: _pesoController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Peso (libras)',
+                        labelStyle: TextStyle(color: Colors.white),
+                        suffixIcon: Icon(Icons.scale, color: Colors.white),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
 
                     // Categoría Dropdown
@@ -185,11 +240,14 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   Future<void> _guardarArticulo() async {
     final nombre = _nombreController.text.trim();
     final talla = _tallaController.text.trim();
+    final descripcion = _descripcionController.text.trim();
     final color = _colorController.text.trim();
+    final precio = int.tryParse(_precioController.text.trim()) ?? 0;
+    final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
     final urlImagen = _urlController.text.trim();
 
-    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || categoria == null || urlImagen.isEmpty) {
+    if (nombre.isEmpty || talla.isEmpty || descripcion.isEmpty || color.isEmpty || precio == 0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );
@@ -212,9 +270,12 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
       final articulo = Articulo(
         nombre: nombre,
         talla: talla,
-        color: color,
+        descripcion: descripcion,
         categoria: categoria,
+        color: color,
+        valorUnitario: precio,
         urlImagen: urlImagen,
+        peso: peso,
       );
 
       final response = await ApiService.addArticulo(userId, articulo);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'editarperfil_pantalla.dart';
 import '../api_service.dart';
 import '../models/articulo.dart';
+import '../widgets/currency_converter.dart';
 
 class CasilleroPantalla extends StatefulWidget {
   const CasilleroPantalla({Key? key}) : super(key: key);
@@ -158,11 +159,7 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                                   itemBuilder: (context, index) {
                                     final articulo = _articulos[index];
                                     return _ArticuloCard(
-                                      imagenUrl: articulo.urlImagen,
-                                      nombre: articulo.nombre,
-                                      talla: articulo.talla,
-                                      color: articulo.color,
-                                      categoria: articulo.categoria,
+                                      articulo: articulo,
                                     );
                                   },
                                 ),
@@ -245,19 +242,11 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
 
 // 🔹 CARD DE PRODUCTO
 class _ArticuloCard extends StatelessWidget {
-  final String imagenUrl;
-  final String nombre;
-  final String talla;
-  final String color;
-  final String categoria;
+  final Articulo articulo;
 
   const _ArticuloCard({
     Key? key,
-    required this.imagenUrl,
-    required this.nombre,
-    required this.talla,
-    required this.color,
-    required this.categoria,
+    required this.articulo,
   }) : super(key: key);
 
   @override
@@ -275,7 +264,7 @@ class _ArticuloCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.network(
-                imagenUrl,
+                articulo.urlImagen,
                 width: 90,
                 height: 90,
                 fit: BoxFit.cover,
@@ -287,13 +276,17 @@ class _ArticuloCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(articulo.nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text('Talla: $talla', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text('Talla: ${articulo.talla}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
                   const SizedBox(height: 4),
-                  Text('Color: $color', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text('Color: ${articulo.color}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
                   const SizedBox(height: 4),
-                  Text('Categoría: $categoria', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text('Categoría: ${articulo.categoria}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text('Precio: ${CurrencyConverter.formatCop(articulo.valorUnitario)} (${CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(articulo.valorUnitario))})', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text('Peso: ${articulo.peso} libras', style: const TextStyle(fontSize: 14, color: Colors.black54)),
                 ],
               ),
             ),
