@@ -269,7 +269,6 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
       final articulo = Articulo(
         nombre: nombre,
         talla: talla,
-        descripcion: descripcion,
         categoria: categoria,
         color: color,
         valorUnitario: precio,
