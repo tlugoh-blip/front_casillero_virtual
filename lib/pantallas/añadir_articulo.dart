@@ -13,7 +13,7 @@ class AnadirArticuloPantalla extends StatefulWidget {
 class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _tallaController = TextEditingController();
-  final TextEditingController _descripcionController = TextEditingController();
+
   final TextEditingController _colorController = TextEditingController();
   final TextEditingController _precioController = TextEditingController();
   final TextEditingController _pesoController = TextEditingController();
@@ -82,8 +82,7 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                     const SizedBox(height: 16),
                     _buildTextField('Talla', _tallaController),
                     const SizedBox(height: 16),
-                    _buildTextField('Descripción', _descripcionController),
-                    const SizedBox(height: 16),
+
                     _buildTextField('Color', _colorController),
                     const SizedBox(height: 16),
 
@@ -240,14 +239,14 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   Future<void> _guardarArticulo() async {
     final nombre = _nombreController.text.trim();
     final talla = _tallaController.text.trim();
-    final descripcion = _descripcionController.text.trim();
+    final descripcion = '';
     final color = _colorController.text.trim();
     final precio = int.tryParse(_precioController.text.trim()) ?? 0;
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
     final urlImagen = _urlController.text.trim();
 
-    if (nombre.isEmpty || talla.isEmpty || descripcion.isEmpty || color.isEmpty || precio == 0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
+    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precio == 0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );

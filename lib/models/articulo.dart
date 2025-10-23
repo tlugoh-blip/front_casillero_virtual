@@ -2,7 +2,6 @@ class Articulo {
   final int? id;
   final String nombre;
   final String talla;
-  final String descripcion;
   final String categoria;
   final String color;
   final int valorUnitario; // precio in COP
@@ -13,7 +12,6 @@ class Articulo {
     this.id,
     required this.nombre,
     required this.talla,
-    required this.descripcion,
     required this.categoria,
     required this.color,
     required this.valorUnitario,
@@ -26,7 +24,6 @@ class Articulo {
       id: json['id'],
       nombre: json['elNombre'],
       talla: json['talla'],
-      descripcion: json['descripcion'],
       categoria: json['categoria'],
       color: json['color'],
       valorUnitario: json['valorUnitario'],
@@ -39,7 +36,6 @@ class Articulo {
     return {
       'elNombre': nombre,
       'talla': talla,
-      'descripcion': descripcion,
       'categoria': categoria,
       'color': color,
       'valorUnitario': valorUnitario,
