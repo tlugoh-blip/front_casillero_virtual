@@ -259,7 +259,7 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Registro exitoso. Inicia sesión.')),
                           );
-                          Navigator.pushReplacementNamed(context, '/home');
+                          Navigator.pushReplacementNamed(context, '/login'); // Cambiado para redirigir a la pantalla de inicio de sesión
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Error: ' + (response.body.isNotEmpty ? response.body : 'No se pudo registrar.'))),
