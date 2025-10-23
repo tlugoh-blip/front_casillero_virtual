@@ -95,6 +95,20 @@ class ApiService {
     }
   }
 
+  // Función para obtener el ID del casillero asociado a un usuario
+  static Future<int?> getCasilleroId(int userId) async {
+    final url = Uri.parse('$baseUrl/casillero/id/$userId'); // endpoint correcto
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['casilleroId']; // clave correcta
+    } else {
+      print('Error al obtener casillero: ${response.statusCode}');
+      return null;
+    }
+  }
+
   // Función para añadir artículo a un casillero (usando userId como casilleroId)
   static Future<http.Response> addArticulo(int casilleroId, Articulo articulo) async {
     final url = Uri.parse('$baseUrl/articulo/add/$casilleroId');
@@ -108,13 +122,20 @@ class ApiService {
 
   // Función para obtener artículos por casillero (usando userId como casilleroId)
   static Future<List<Articulo>> getArticulosPorCasillero(int casilleroId) async {
+    // URL corregida
     final url = Uri.parse('$baseUrl/articulo/get/$casilleroId');
     final response = await http.get(url);
+
+    print("Respuesta cruda de la API: ${response.body}"); // depuración
+
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => Articulo.fromJson(json)).toList();
+      List jsonData = json.decode(response.body);
+      print("JSON parseado: $jsonData"); // depuración
+      return jsonData.map((e) => Articulo.fromJson(e)).toList();
     } else {
-      throw Exception('Error al obtener artículos: ${response.statusCode}');
+      print("Error HTTP: ${response.statusCode}");
+      throw Exception('Error al cargar los artículos');
     }
   }
+
 }

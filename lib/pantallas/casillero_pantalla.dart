@@ -25,11 +25,22 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
     try {
       final userId = await ApiService.getUserId();
       if (userId != null) {
-        final articulos = await ApiService.getArticulosPorCasillero(userId);
-        setState(() {
-          _articulos = articulos;
-          _isLoading = false;
-        });
+        // Obtener primero el casillero del usuario
+        final casilleroId = await ApiService.getCasilleroId(userId);
+        if (casilleroId != null) {
+          final articulos = await ApiService.getArticulosPorCasillero(casilleroId);
+          setState(() {
+            _articulos = articulos;
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se encontró el casillero del usuario.')),
+          );
+        }
       } else {
         setState(() {
           _isLoading = false;
@@ -118,10 +129,9 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                     ),
                   ),
                   onPressed: () async {
-                    // ✅ Abre la pantalla de Añadir Artículo
                     final result = await Navigator.pushNamed(context, '/anadirarticulo');
                     if (result == true) {
-                      _cargarArticulos(); // Recargar artículos después de añadir uno
+                      _cargarArticulos();
                     }
                   },
                   child: Row(
@@ -147,22 +157,26 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                 ),
                 child: Column(
                   children: [
-                    // Lista de artículos
+                    // Lista de artículos en Grid
                     Expanded(
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : _articulos.isEmpty
-                              ? const Center(child: Text('No tienes artículos aún.'))
-                              : ListView.builder(
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: _articulos.length,
-                                  itemBuilder: (context, index) {
-                                    final articulo = _articulos[index];
-                                    return _ArticuloCard(
-                                      articulo: articulo,
-                                    );
-                                  },
-                                ),
+                          ? const Center(child: Text('No tienes artículos aún.'))
+                          : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.75,
+                        ),
+                        itemCount: _articulos.length,
+                        itemBuilder: (context, index) {
+                          final articulo = _articulos[index];
+                          return _ArticuloMiniCard(articulo: articulo);
+                        },
+                      ),
                     ),
 
                     // 🔹 BOTÓN "IR A PAGAR"
@@ -173,7 +187,7 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: azulFondo,
-                            foregroundColor: Colors.white, // ✅ texto blanco
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(32),
@@ -189,7 +203,7 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                           child: const Text(
                             'Ir a pagar',
                             style: TextStyle(
-                              color: Colors.white, // ✅ refuerzo de blanco en texto
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -240,62 +254,57 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
   }
 }
 
-// 🔹 CARD DE PRODUCTO
-class _ArticuloCard extends StatelessWidget {
+// 🔹 MINI CARD PARA GRID
+class _ArticuloMiniCard extends StatelessWidget {
   final Articulo articulo;
 
-  const _ArticuloCard({
-    Key? key,
-    required this.articulo,
-  }) : super(key: key);
+  const _ArticuloMiniCard({Key? key, required this.articulo}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
+    return GestureDetector(
+      onTap: () {
+        // Aquí se puede abrir detalle del artículo o menú contextual
+      },
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                articulo.urlImagen,
-                width: 90,
-                height: 90,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 90),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Image.network(
+                  articulo.url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 50),
+                ),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(articulo.nombre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Text('Talla: ${articulo.talla}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text('Color: ${articulo.color}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text('Categoría: ${articulo.categoria}', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text('Precio: ${CurrencyConverter.formatCop(articulo.valorUnitario)} (${CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(articulo.valorUnitario))})', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text('Peso: ${articulo.peso} libras', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  Text(
+                    articulo.nombre,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Talla: ${articulo.talla}',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  Text(
+                    'Precio: ${CurrencyConverter.formatCop(articulo.valorUnitario)}',
+                    style: const TextStyle(fontSize: 12, color: azulFondo),
+                  ),
                 ],
               ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: const Icon(Icons.edit, color: azulFondo), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.delete, color: azulFondo), onPressed: () {}),
-              ],
             ),
           ],
         ),

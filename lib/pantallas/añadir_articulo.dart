@@ -34,7 +34,7 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
       appBar: AppBar(
         backgroundColor: azulFondo,
         elevation: 0,
-        // 🔹 Se elimina el título "Mi casillero"
+        // Se elimina el título "Mi casillero"
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
@@ -239,7 +239,6 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   Future<void> _guardarArticulo() async {
     final nombre = _nombreController.text.trim();
     final talla = _tallaController.text.trim();
-    final descripcion = '';
     final color = _colorController.text.trim();
     final precio = int.tryParse(_precioController.text.trim()) ?? 0;
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
@@ -266,23 +265,34 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
         return;
       }
 
+      //  Nuevo paso: obtener el ID del casillero desde el backend
+      final casilleroId = await ApiService.getCasilleroId(userId);
+      if (casilleroId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró un casillero para este usuario.')),
+        );
+        return;
+      }
+
+      // Crear objeto artículo
       final articulo = Articulo(
         nombre: nombre,
         talla: talla,
         categoria: categoria,
         color: color,
         valorUnitario: precio,
-        urlImagen: urlImagen,
+        url: urlImagen,
         peso: peso,
       );
 
-      final response = await ApiService.addArticulo(userId, articulo);
+      //  Enviar el artículo al casillero correcto
+      final response = await ApiService.addArticulo(casilleroId, articulo);
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Artículo guardado correctamente')),
+          const SnackBar(content: Text('✅ Artículo guardado correctamente')),
         );
-        Navigator.pop(context, true); // Retornar true para indicar éxito
+        Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar artículo: ${response.statusCode}')),
