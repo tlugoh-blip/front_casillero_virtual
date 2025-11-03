@@ -38,7 +38,21 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
       _precioController.text = usd.toStringAsFixed(2);
       _pesoController.text = a.peso.toString();
       _urlController.text = a.url;
-      _categoriaSeleccionada = a.categoria;
+      // Asegurarnos de que el valor inicial del Dropdown coincide exactamente
+      // con uno de los elementos de la lista `_categorias`.
+      // Algunos artículos pueden venir con la categoría en minúsculas
+      // (ej. "calzado") mientras que la lista tiene "Calzado".
+      // Buscamos una coincidencia case-insensitive y usamos el valor
+      // de la lista para evitar la excepción de DropdownButton.
+      if (a.categoria != null) {
+        final match = _categorias.firstWhere(
+          (c) => c.toLowerCase() == a.categoria.toLowerCase(),
+          orElse: () => a.categoria!,
+        );
+        _categoriaSeleccionada = match;
+      } else {
+        _categoriaSeleccionada = null;
+      }
     }
   }
 
@@ -284,6 +298,22 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
     try {
       // Si estamos editando, usar updateArticulo
       if (widget.articulo != null && widget.articulo!.id != null) {
+        final userId = await ApiService.getUserId();
+        if (userId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Usuario no autenticado.')),
+          );
+          return;
+        }
+
+        final casilleroId = await ApiService.getCasilleroId(userId);
+        if (casilleroId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se encontró el casillero del usuario.')),
+          );
+          return;
+        }
+
         final articuloActualizado = Articulo(
           id: widget.articulo!.id,
           nombre: nombre,
@@ -295,7 +325,7 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
           peso: peso,
         );
 
-        final resp = await ApiService.updateArticulo(widget.articulo!.id!, articuloActualizado);
+        final resp = await ApiService.updateArticuloInCasillero(casilleroId, widget.articulo!.id!, articuloActualizado);
         if (resp.statusCode == 200 || resp.statusCode == 204) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✅ Artículo actualizado correctamente')),
@@ -303,7 +333,7 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al actualizar artículo: ${resp.statusCode}')),
+            SnackBar(content: Text('Error al actualizar artículo: ${resp.statusCode} - ${resp.body}')),
           );
         }
       } else {
@@ -343,7 +373,7 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
           Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al guardar artículo: ${response.statusCode}')),
+            SnackBar(content: Text('Error al guardar artículo: ${response.statusCode} - ${response.body}')),
           );
         }
       }

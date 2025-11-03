@@ -196,4 +196,20 @@ class ApiService {
     return response;
   }
 
+  // Nuevo: actualizar un artículo dentro de un casillero usando /articulo/put/{casilleroId}/{articuloId}
+  static Future<http.Response> updateArticuloInCasillero(int casilleroId, int articuloId, Articulo articulo) async {
+    final url = Uri.parse('$baseUrl/articulo/put/$casilleroId/$articuloId');
+    print('[ApiService.updateArticuloInCasillero] PUT $url');
+    print('[ApiService.updateArticuloInCasillero] body: ${jsonEncode(articulo.toJson())}');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json; charset=UTF-8', 'Accept': 'application/json'},
+      body: jsonEncode(articulo.toJson()),
+    );
+    try {
+      print('[ApiService.updateArticuloInCasillero] response: ${response.statusCode} ${response.body}');
+    } catch (_) {}
+    return response;
+  }
+
 }
