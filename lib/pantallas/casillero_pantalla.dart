@@ -210,12 +210,26 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                               if (confirm == true) {
                                 // Llamar al API para eliminar
                                 if (articulo.id != null) {
-                                  final resp = await ApiService.deleteArticulo(articulo.id!);
-                                  if (resp.statusCode == 200 || resp.statusCode == 204) {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Artículo eliminado')));
-                                    _cargarArticulos();
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: ${resp.statusCode}')));
+                                  try {
+                                    final userId = await ApiService.getUserId();
+                                    if (userId == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario no autenticado.')));
+                                    } else {
+                                      final casilleroId = await ApiService.getCasilleroId(userId);
+                                      if (casilleroId == null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se encontró el casillero del usuario.')));
+                                      } else {
+                                        final resp = await ApiService.deleteArticuloFromCasillero(casilleroId, articulo.id!);
+                                        if (resp.statusCode == 200 || resp.statusCode == 204) {
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Artículo eliminado')));
+                                          _cargarArticulos();
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: ${resp.statusCode} - ${resp.body}')));
+                                        }
+                                      }
+                                    }
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
                                   }
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Artículo sin ID, no se puede eliminar')));
