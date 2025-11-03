@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models/articulo.dart';
 
 class ApiService {
-  // Cambia esta URL por la de tu backend real
+
   static const String baseUrl = 'http://localhost:8620';
+
 
   // Ejemplo de función para login
   static Future<http.Response> login(String email, String contrasenia) async {
@@ -84,6 +85,12 @@ class ApiService {
     await prefs.setInt('userId', id);
   }
 
+  // Nuevo: eliminar userId de shared preferences (logout local)
+  static Future<void> clearUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userId');
+  }
+
   // Función para obtener datos del usuario por ID
   static Future<Map<String, dynamic>?> getUsuario(int id) async {
     final url = Uri.parse('$baseUrl/usuario/get/$id');
@@ -136,6 +143,26 @@ class ApiService {
       print("Error HTTP: ${response.statusCode}");
       throw Exception('Error al cargar los artículos');
     }
+  }
+
+  // Nuevo: actualizar un artículo existente
+  // Asumo el endpoint PUT /articulo/update/{id}
+  static Future<http.Response> updateArticulo(int articuloId, Articulo articulo) async {
+    final url = Uri.parse('$baseUrl/articulo/update/$articuloId');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(articulo.toJson()),
+    );
+    return response;
+  }
+
+  // Nuevo: eliminar un artículo por id
+  // Asumo el endpoint DELETE /articulo/delete/{id}
+  static Future<http.Response> deleteArticulo(int articuloId) async {
+    final url = Uri.parse('$baseUrl/articulo/delete/$articuloId');
+    final response = await http.delete(url);
+    return response;
   }
 
 }

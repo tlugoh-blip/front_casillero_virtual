@@ -7,6 +7,8 @@ import 'pantallas/casillero_pantalla.dart';
 import 'pantallas/pagos_pantalla.dart';
 import 'pantallas/añadir_articulo.dart'; // ✅ cambiado (sin ñ y con guion bajo)
 import 'pantallas/welcome_pantalla.dart'; // <-- agregado
+import 'pantallas/editar_articulo.dart';
+import 'models/articulo.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,6 +37,10 @@ class MyApp extends StatelessWidget {
         '/casillero': (context) => const CasilleroPantalla(),
         '/pagos': (context) => const PagosPantalla(),
         '/anadirarticulo': (context) => const AnadirArticuloPantalla(), // ✅ corregido
+        '/editararticulo': (context) {
+          final articuloArg = ModalRoute.of(context)!.settings.arguments as Articulo?;
+          return EditarArticuloPantalla(articulo: articuloArg);
+        },
       },
     );
   }

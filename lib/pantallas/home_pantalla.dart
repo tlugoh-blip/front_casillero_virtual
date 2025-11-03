@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'editarperfil_pantalla.dart';
+import '../api_service.dart';
 
 class HomePantalla extends StatelessWidget {
   const HomePantalla({Key? key}) : super(key: key);
@@ -21,15 +22,23 @@ class HomePantalla extends StatelessWidget {
                       'assets/imagenes/upperblanco.png',
                       height: 88,
                     ),
-                    IconButton(
+                    PopupMenuButton<String>(
                       icon: const Icon(Icons.person, color: Colors.white, size: 36),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const EditarPerfilPantalla(),
-                          ),
-                        );
+                      onSelected: (value) async {
+                        if (value == 'editar') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const EditarPerfilPantalla()),
+                          );
+                        } else if (value == 'cerrar') {
+                          await ApiService.clearUserId();
+                          // Llevar al usuario a la pantalla de bienvenida / login
+                          Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+                        }
                       },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: 'editar', child: Text('Editar perfil')),
+                        const PopupMenuItem(value: 'cerrar', child: Text('Cerrar sesión')),
+                      ],
                     ),
                   ],
                 ),

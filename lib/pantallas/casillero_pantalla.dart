@@ -87,13 +87,20 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                       ),
                     ),
                   ),
-                  IconButton(
+                  PopupMenuButton<String>(
                     icon: const Icon(Icons.person, color: Colors.white, size: 30),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EditarPerfilPantalla()),
-                      );
+                    onSelected: (value) async {
+                      if (value == 'editar') {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditarPerfilPantalla()));
+                      } else if (value == 'cerrar') {
+                        await ApiService.clearUserId();
+                        Navigator.pushNamedAndRemoveUntil(context, '/welcome', (route) => false);
+                      }
                     },
+                    itemBuilder: (ctx) => const [
+                      PopupMenuItem(value: 'editar', child: Text('Editar perfil')),
+                      PopupMenuItem(value: 'cerrar', child: Text('Cerrar sesión')),
+                    ],
                   ),
                 ],
               ),
@@ -174,7 +181,48 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                         itemCount: _articulos.length,
                         itemBuilder: (context, index) {
                           final articulo = _articulos[index];
-                          return _ArticuloMiniCard(articulo: articulo);
+                          return _ArticuloMiniCard(
+                            articulo: articulo,
+                            onEdit: () async {
+                              // Navegar a pantalla de editar y recargar si hubo cambios
+                              final result = await Navigator.pushNamed(
+                                context,
+                                '/editararticulo',
+                                arguments: articulo,
+                              );
+                              if (result == true) {
+                                _cargarArticulos();
+                              }
+                            },
+                            onDelete: () async {
+                              // Confirmación antes de eliminar
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Eliminar artículo'),
+                                  content: const Text('¿Estás seguro que deseas eliminar este artículo?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sí')),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                // Llamar al API para eliminar
+                                if (articulo.id != null) {
+                                  final resp = await ApiService.deleteArticulo(articulo.id!);
+                                  if (resp.statusCode == 200 || resp.statusCode == 204) {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Artículo eliminado')));
+                                    _cargarArticulos();
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: ${resp.statusCode}')));
+                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Artículo sin ID, no se puede eliminar')));
+                                }
+                              }
+                            },
+                          );
                         },
                       ),
                     ),
@@ -257,17 +305,17 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
 // 🔹 MINI CARD PARA GRID
 class _ArticuloMiniCard extends StatelessWidget {
   final Articulo articulo;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
-  const _ArticuloMiniCard({Key? key, required this.articulo}) : super(key: key);
+  const _ArticuloMiniCard({Key? key, required this.articulo, this.onEdit, this.onDelete}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
 
     return GestureDetector(
-      onTap: () {
-        // Aquí se puede abrir detalle del artículo o menú contextual
-      },
+      onTap: () {},
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -275,13 +323,46 @@ class _ArticuloMiniCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  articulo.url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 50),
-                ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Image.network(
+                      articulo.url,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 50),
+                    ),
+                  ),
+                  // Botones editar/eliminar en la esquina superior derecha
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), shape: BoxShape.circle),
+                          child: IconButton(
+                            icon: const Icon(Icons.edit, size: 18, color: Color(0xFF002B68)),
+                            onPressed: onEdit,
+                            tooltip: 'Editar',
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), shape: BoxShape.circle),
+                          child: IconButton(
+                            icon: const Icon(Icons.delete, size: 18, color: Colors.redAccent),
+                            onPressed: onDelete,
+                            tooltip: 'Eliminar',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(
