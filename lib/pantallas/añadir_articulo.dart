@@ -20,7 +20,30 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
   final TextEditingController _urlController = TextEditingController();
 
   String? _categoriaSeleccionada;
+  String? _subcategoriaSeleccionada;
   final List<String> _categorias = ['Ropa', 'Calzado', 'Accesorios'];
+
+  // Subcategorías por categoría
+  final Map<String, List<String>> _subcategorias = {
+    'Ropa': ['Buso', 'Chaqueta', 'Pantaloneta', 'Pantalón', 'Camisa'],
+    'Calzado': ['Tenis', 'Sandalias', 'Botas'],
+    'Accesorios': ['Gorra', 'Cinturón', 'Bolso'],
+  };
+
+  // Pesos estimados en libras por subcategoría (valores aproximados)
+  final Map<String, double> _pesoEstimado = {
+    'Buso': 0.6,
+    'Chaqueta': 1.2,
+    'Pantaloneta': 0.4,
+    'Pantalón': 0.8,
+    'Camisa': 0.5,
+    'Tenis': 0.8,
+    'Sandalias': 0.3,
+    'Botas': 1.5,
+    'Gorra': 0.15,
+    'Cinturón': 0.4,
+    'Bolso': 0.7,
+  };
 
   bool _isLoading = false;
 
@@ -86,13 +109,92 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                     _buildTextField('Color', _colorController),
                     const SizedBox(height: 16),
 
-                    // Campo Precio con conversor COP a USD
+                    // Categoría Dropdown (ahora aparece justo después de Color)
+                    DropdownButtonFormField<String>(
+                      initialValue: _categoriaSeleccionada,
+                      dropdownColor: azulClaro,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoría',
+                        labelStyle: TextStyle(color: Colors.white),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      items: _categorias
+                          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _categoriaSeleccionada = value;
+                          // reset subcategoria y peso cuando cambia la categoría
+                          _subcategoriaSeleccionada = null;
+                          _pesoController.text = '';
+                        });
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+                    // Si se seleccionó una categoría, mostrar subcategorías (si existen)
+                    if (_categoriaSeleccionada != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              initialValue: _subcategoriaSeleccionada,
+                              dropdownColor: azulClaro,
+                              decoration: const InputDecoration(
+                                labelText: 'Subcategoría',
+                                labelStyle: TextStyle(color: Colors.white),
+                              ),
+                              style: const TextStyle(color: Colors.white),
+                              items: (_subcategorias[_categoriaSeleccionada] ?? [])
+                                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _subcategoriaSeleccionada = value;
+                                  // Pre-fill peso estimado si existe
+                                  if (value != null && _pesoEstimado.containsKey(value)) {
+                                    _pesoController.text = _pesoEstimado[value]!.toStringAsFixed(2);
+                                  } else {
+                                    _pesoController.text = '';
+                                  }
+                                });
+                              },
+                            ),
+
+                            const SizedBox(height: 12),
+                            // Campo Peso (prefill sugerido, editable)
+                            TextField(
+                              controller: _pesoController,
+                              keyboardType: TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                labelText: 'Peso (libras)',
+                                labelStyle: const TextStyle(color: Colors.white),
+                                hintText: _subcategoriaSeleccionada != null ? 'Peso estimado para $_subcategoriaSeleccionada' : 'Introduce peso en libras',
+                                hintStyle: const TextStyle(color: Colors.white54),
+                                suffixIcon: const Icon(Icons.scale, color: Colors.white),
+                                enabledBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white),
+                                ),
+                                focusedBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
+
+                    // Campo Precio: ahora el usuario ingresa en USD y mostramos el equivalente en COP
                     TextField(
                       controller: _precioController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
-                        labelText: 'Precio (COP)',
+                        labelText: 'Precio (USD)',
                         labelStyle: TextStyle(color: Colors.white),
                         suffixIcon: Icon(Icons.attach_money, color: Colors.white),
                         enabledBorder: UnderlineInputBorder(
@@ -110,59 +212,10 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Equivalente: ${CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(int.tryParse(_precioController.text) ?? 0))}',
+                          'Equivalente: ${CurrencyConverter.formatCop(CurrencyConverter.usdToCop(double.tryParse(_precioController.text) ?? 0.0))}',
                           style: const TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                       ),
-                    const SizedBox(height: 16),
-
-                    // Campo Peso
-                    TextField(
-                      controller: _pesoController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Peso (libras)',
-                        labelStyle: TextStyle(color: Colors.white),
-                        suffixIcon: Icon(Icons.scale, color: Colors.white),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Categoría Dropdown
-                    DropdownButtonFormField<String>(
-                      value: _categoriaSeleccionada,
-                      dropdownColor: azulClaro,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría',
-                        labelStyle: TextStyle(color: Colors.white),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      items: _categorias
-                          .map((cat) => DropdownMenuItem(
-                        value: cat,
-                        child: Text(cat),
-                      ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _categoriaSeleccionada = value;
-                        });
-                      },
-                    ),
-
                     const SizedBox(height: 16),
 
                     // Campo URL con ícono
@@ -240,12 +293,14 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
     final nombre = _nombreController.text.trim();
     final talla = _tallaController.text.trim();
     final color = _colorController.text.trim();
-    final precio = int.tryParse(_precioController.text.trim()) ?? 0;
+    // Precio ingresado por el usuario en USD -> convertir a COP para el backend
+    final precioUsd = double.tryParse(_precioController.text.trim()) ?? 0.0;
+    final precio = CurrencyConverter.usdToCop(precioUsd);
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
     final urlImagen = _urlController.text.trim();
 
-    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precio == 0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
+    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precioUsd == 0.0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );

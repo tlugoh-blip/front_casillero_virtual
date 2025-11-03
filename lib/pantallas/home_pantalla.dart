@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'editarperfil_pantalla.dart';
 import '../api_service.dart';
 
@@ -62,7 +63,7 @@ class HomePantalla extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Explora marcas, outlets y ofertas',
+                      'Para explorar marcas, dale clic a la marca que desees.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: const Color.fromRGBO(255, 255, 255, 0.8),
@@ -111,14 +112,14 @@ class HomePantalla extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   childAspectRatio: 1.1,
                   children: [
-                    _brandScrollTile('assets/imagenes/adidas.png'),
-                    _brandScrollTile('assets/imagenes/nike.png'),
-                    _brandScrollTile('assets/imagenes/boss.png'),
-                    _brandScrollTile('assets/imagenes/calvinklein.png'),
-                    _brandScrollTile('assets/imagenes/puma.png'),
-                    _brandScrollTile('assets/imagenes/reebok.png'),
+                    _brandScrollTile('assets/imagenes/adidas.png', 'https://www.adidas.com/us'),
+                    _brandScrollTile('assets/imagenes/nike.png', 'https://www.nike.com/xl/'),
+                    _brandScrollTile('assets/imagenes/boss.png', 'https://www.hugoboss.com.co/'),
+                    _brandScrollTile('assets/imagenes/calvinklein.png', 'https://www.calvinklein.us/en?cid=paidsearch_ggl_us_brandpla_bau_g-usa-pmax-catchall-unisex-nca_na_na__na&gclsrc=aw.ds&gad_source=1&gad_campaignid=22346720136&gbraid=0AAAAAD0wQr1fO7t0G74FmqARUb-0jK4wI&gclid=EAIaIQobChMIp7C3wsvWkAMVq4NaBR1cVDSrEAAYASAAEgIUxfD_BwE'),
+                    _brandScrollTile('assets/imagenes/puma.png', 'https://us.puma.com/us/en?srsltid=AfmBOorYohrFPCtenExBnSlDdTjEIB66LjCIlYLwxA2hLZ0_cYljCp4k'),
+                    _brandScrollTile('assets/imagenes/reebok.png', 'https://www.reebok.com/?srsltid=AfmBOor7jCp9GLYBF3a3y8fTeP7pWR-rYbDkR0TZ2-pFG_OSlAMgav-m'),
                     _brandScrollTile('assets/imagenes/tommy.png'),
-                    _brandScrollTile('assets/imagenes/underh.png'),
+                    _brandScrollTile('assets/imagenes/underh.png', 'https://www.underarmour.com/en-us/'),
                   ],
                 ),
               ),
@@ -192,18 +193,29 @@ class HomePantalla extends StatelessWidget {
     );
   }
 
-  static Widget _brandScrollTile(String assetPath) {
-    return Container(
-      width: 140,
-      decoration: BoxDecoration(
-        color: const Color.fromRGBO(255, 255, 255, 0.08),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Image.asset(
-          assetPath,
-          fit: BoxFit.cover,
+  static Widget _brandScrollTile(String assetPath, [String? url]) {
+    return InkWell(
+      onTap: url == null
+          ? null
+          : () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 140,
+        decoration: BoxDecoration(
+          color: const Color.fromRGBO(255, 255, 255, 0.08),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );

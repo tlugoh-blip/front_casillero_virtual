@@ -33,7 +33,9 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
       _nombreController.text = a.nombre;
       _tallaController.text = a.talla;
       _colorController.text = a.color;
-      _precioController.text = a.valorUnitario.toString();
+      // Pre-fill price in USD as a numeric string (e.g. 12.00) so parsing works when saving
+      final usd = CurrencyConverter.copToUsd(a.valorUnitario);
+      _precioController.text = usd.toStringAsFixed(2);
       _pesoController.text = a.peso.toString();
       _urlController.text = a.url;
       _categoriaSeleccionada = a.categoria;
@@ -107,13 +109,13 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                     _buildTextField('Color', _colorController),
                     const SizedBox(height: 16),
 
-                    // Campo Precio con conversor COP a USD
+                    // Campo Precio: editar en USD y mostrar equivalente en COP
                     TextField(
                       controller: _precioController,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
-                        labelText: 'Precio (COP)',
+                        labelText: 'Precio (USD)',
                         labelStyle: TextStyle(color: Colors.white),
                         suffixIcon: Icon(Icons.attach_money, color: Colors.white),
                         enabledBorder: UnderlineInputBorder(
@@ -131,7 +133,7 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Equivalente: ${CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(int.tryParse(_precioController.text) ?? 0))}',
+                          'Equivalente: ${CurrencyConverter.formatCop(CurrencyConverter.usdToCop(double.tryParse(_precioController.text) ?? 0.0))}',
                           style: const TextStyle(color: Colors.white70, fontSize: 12),
                         ),
                       ),
@@ -261,12 +263,14 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
     final nombre = _nombreController.text.trim();
     final talla = _tallaController.text.trim();
     final color = _colorController.text.trim();
-    final precio = int.tryParse(_precioController.text.trim()) ?? 0;
+    // Precio mostrado en USD -> convertir a COP para enviar
+    final precioUsd = double.tryParse(_precioController.text.trim()) ?? 0.0;
+    final precio = CurrencyConverter.usdToCop(precioUsd);
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
     final urlImagen = _urlController.text.trim();
 
-    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precio == 0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
+    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precioUsd == 0.0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );
