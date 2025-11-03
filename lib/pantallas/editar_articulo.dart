@@ -20,7 +20,9 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
   final TextEditingController _urlController = TextEditingController();
 
   String? _categoriaSeleccionada;
+  String? _subcategoriaSeleccionada; // agregado
   final List<String> _categorias = ['Ropa', 'Calzado', 'Accesorios'];
+  final List<String> _subcategoriasRopa = ['Buso', 'Chaqueta', 'Pantaloneta', 'Pantalon']; // agregado
 
   bool _isLoading = false;
 
@@ -44,12 +46,29 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
       // (ej. "calzado") mientras que la lista tiene "Calzado".
       // Buscamos una coincidencia case-insensitive y usamos el valor
       // de la lista para evitar la excepción de DropdownButton.
-      if (a.categoria != null) {
-        final match = _categorias.firstWhere(
-          (c) => c.toLowerCase() == a.categoria.toLowerCase(),
-          orElse: () => a.categoria!,
-        );
-        _categoriaSeleccionada = match;
+      if (a.categoria.isNotEmpty) {
+        final categoriaRaw = a.categoria;
+        // Si la categoría viene concatenada como "Ropa > Buso" la parseamos
+        if (categoriaRaw.contains('>')) {
+          final parts = categoriaRaw.split('>');
+          final main = parts[0].trim();
+          final sub = parts.length > 1 ? parts[1].trim() : null;
+          final match = _categorias.firstWhere(
+            (c) => c.toLowerCase() == main.toLowerCase(),
+            orElse: () => main,
+          );
+          _categoriaSeleccionada = match;
+          if (sub != null && _subcategoriasRopa.any((s) => s.toLowerCase() == sub.toLowerCase())) {
+            _subcategoriaSeleccionada =
+                _subcategoriasRopa.firstWhere((s) => s.toLowerCase() == sub.toLowerCase());
+          }
+        } else {
+          final match = _categorias.firstWhere(
+            (c) => c.toLowerCase() == categoriaRaw.toLowerCase(),
+            orElse: () => categoriaRaw,
+          );
+          _categoriaSeleccionada = match;
+        }
       } else {
         _categoriaSeleccionada = null;
       }
@@ -123,6 +142,75 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                     _buildTextField('Color', _colorController),
                     const SizedBox(height: 16),
 
+                    // -------------------------
+                    // Categoría (ahora después de Color)
+                    // -------------------------
+                    DropdownButtonFormField<String>(
+                      initialValue: _categoriaSeleccionada,
+                      dropdownColor: azulClaro,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoría',
+                        labelStyle: TextStyle(color: Colors.white),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      items: _categorias
+                          .map((cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _categoriaSeleccionada = value;
+                          // Reset subcategoria si cambia la categoría
+                          if (_categoriaSeleccionada != 'Ropa') {
+                            _subcategoriaSeleccionada = null;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Subcategoría visible sólo si la categoría es Ropa
+                    if (_categoriaSeleccionada == 'Ropa')
+                      Column(
+                        children: [
+                          DropdownButtonFormField<String>(
+                            initialValue: _subcategoriaSeleccionada,
+                            dropdownColor: azulClaro,
+                            decoration: const InputDecoration(
+                              labelText: 'Subcategoría (ropa)',
+                              labelStyle: TextStyle(color: Colors.white),
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: Colors.white),
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            items: _subcategoriasRopa
+                                .map((s) => DropdownMenuItem(
+                                      value: s,
+                                      child: Text(s),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _subcategoriaSeleccionada = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+
                     // Campo Precio: editar en USD y mostrar equivalente en COP
                     TextField(
                       controller: _precioController,
@@ -153,53 +241,25 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                       ),
                     const SizedBox(height: 16),
 
-                    // Campo Peso
+                    // Campo Peso con label dinámico según subcategoría
                     TextField(
                       controller: _pesoController,
                       keyboardType: TextInputType.number,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Peso (libras)',
-                        labelStyle: TextStyle(color: Colors.white),
-                        suffixIcon: Icon(Icons.scale, color: Colors.white),
-                        enabledBorder: UnderlineInputBorder(
+                      decoration: InputDecoration(
+                        labelText: _subcategoriaSeleccionada != null
+                            ? 'Peso (libras) - estimado para ${_subcategoriaSeleccionada!}'
+                            : 'Peso (libras)',
+                        labelStyle: const TextStyle(color: Colors.white),
+                        suffixIcon: const Icon(Icons.scale, color: Colors.white),
+                        enabledBorder: const UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.white),
                         ),
-                        focusedBorder: UnderlineInputBorder(
+                        focusedBorder: const UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.white),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Categoría Dropdown
-                    DropdownButtonFormField<String>(
-                      initialValue: _categoriaSeleccionada,
-                      dropdownColor: azulClaro,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría',
-                        labelStyle: TextStyle(color: Colors.white),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
-                        ),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                      items: _categorias
-                          .map((cat) => DropdownMenuItem(
-                                value: cat,
-                                child: Text(cat),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _categoriaSeleccionada = value;
-                        });
-                      },
-                    ),
-
                     const SizedBox(height: 16),
 
                     // Campo URL con ícono
@@ -282,9 +342,18 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
     final precio = CurrencyConverter.usdToCop(precioUsd);
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
+    final subcategoria = _subcategoriaSeleccionada; // agregado
     final urlImagen = _urlController.text.trim();
 
-    if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precioUsd == 0.0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
+    // Validaciones: si eligió Ropa, exigir subcategoría
+    if (nombre.isEmpty ||
+        talla.isEmpty ||
+        color.isEmpty ||
+        precioUsd == 0.0 ||
+        peso == 0.0 ||
+        categoria == null ||
+        urlImagen.isEmpty ||
+        (categoria == 'Ropa' && subcategoria == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );
@@ -314,11 +383,15 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
           return;
         }
 
+        final categoriaFinal = (categoria == 'Ropa' && subcategoria != null)
+            ? '$categoria > $subcategoria'
+            : categoria;
+
         final articuloActualizado = Articulo(
           id: widget.articulo!.id,
           nombre: nombre,
           talla: talla,
-          categoria: categoria,
+          categoria: categoriaFinal,
           color: color,
           valorUnitario: precio,
           url: urlImagen,
@@ -354,10 +427,14 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
           return;
         }
 
+        final categoriaFinal = (categoria == 'Ropa' && subcategoria != null)
+            ? '$categoria > $subcategoria'
+            : categoria;
+
         final articulo = Articulo(
           nombre: nombre,
           talla: talla,
-          categoria: categoria,
+          categoria: categoriaFinal,
           color: color,
           valorUnitario: precio,
           url: urlImagen,
