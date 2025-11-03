@@ -108,8 +108,28 @@ class ApiService {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['casilleroId']; // clave correcta
+      try {
+        final data = jsonDecode(response.body);
+        // Soportar distintas formas: { "casilleroId": 5 }, { "id": 5 }, o simplemente 5
+        if (data is Map) {
+          if (data.containsKey('casilleroId')) return data['casilleroId'];
+          if (data.containsKey('id')) return data['id'];
+          // buscar primeras key numérica
+          for (final v in data.values) {
+            if (v is int) return v;
+          }
+        } else if (data is int) {
+          return data;
+        } else if (data is String) {
+          final parsed = int.tryParse(data);
+          if (parsed != null) return parsed;
+        }
+      } catch (e) {
+        // si no es JSON, intentar parsear como entero plano
+        final plain = int.tryParse(response.body.trim());
+        if (plain != null) return plain;
+      }
+      return null;
     } else {
       print('Error al obtener casillero: ${response.statusCode}');
       return null;
@@ -162,6 +182,17 @@ class ApiService {
   static Future<http.Response> deleteArticulo(int articuloId) async {
     final url = Uri.parse('$baseUrl/articulo/delete/$articuloId');
     final response = await http.delete(url);
+    return response;
+  }
+
+  // Nuevo: eliminar un artículo de un casillero específico usando el endpoint
+  // /articulo/del/{casilleroId}/{articuloId}
+  static Future<http.Response> deleteArticuloFromCasillero(int casilleroId, int articuloId) async {
+    final url = Uri.parse('$baseUrl/articulo/del/$casilleroId/$articuloId');
+    final response = await http.delete(url);
+    try {
+      print('[ApiService.deleteArticuloFromCasillero] ${response.statusCode} ${response.body}');
+    } catch (_) {}
     return response;
   }
 
