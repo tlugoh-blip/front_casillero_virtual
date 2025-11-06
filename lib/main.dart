@@ -5,6 +5,7 @@ import 'pantallas/home_pantalla.dart';
 import 'pantallas/Registrar_pantalla.dart';
 import 'pantallas/casillero_pantalla.dart';
 import 'pantallas/pagos_pantalla.dart';
+import 'pantallas/estado_pantalla.dart';
 import 'pantallas/añadir_articulo.dart'; // ✅ cambiado (sin ñ y con guion bajo)
 import 'pantallas/welcome_pantalla.dart'; // <-- agregado
 import 'pantallas/editar_articulo.dart';
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegistrarPantalla(),
         '/casillero': (context) => const CasilleroPantalla(),
         '/pagos': (context) => const PagosPantalla(),
+        '/estado': (context) => const EstadoPantalla(),
         '/anadirarticulo': (context) => const AnadirArticuloPantalla(), // ✅ corregido
         '/editararticulo': (context) {
           final articuloArg = ModalRoute.of(context)!.settings.arguments as Articulo?;

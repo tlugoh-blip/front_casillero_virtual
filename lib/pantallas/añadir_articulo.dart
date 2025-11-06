@@ -166,19 +166,19 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                             // Campo Peso (prefill sugerido, editable)
                             TextField(
                               controller: _pesoController,
-                              keyboardType: TextInputType.numberWithOptions(decimal: true),
-                              style: const TextStyle(color: Colors.white),
+                              readOnly: true, // ahora no editable por el usuario
+                              style: const TextStyle(color: Colors.white70),
                               decoration: InputDecoration(
                                 labelText: 'Peso (libras)',
-                                labelStyle: const TextStyle(color: Colors.white),
-                                hintText: _subcategoriaSeleccionada != null ? 'Peso estimado para $_subcategoriaSeleccionada' : 'Introduce peso en libras',
+                                labelStyle: const TextStyle(color: Colors.white70),
+                                hintText: _subcategoriaSeleccionada != null ? 'Peso estimado para $_subcategoriaSeleccionada' : 'Peso estimado (selecciona subcategoría)',
                                 hintStyle: const TextStyle(color: Colors.white54),
-                                suffixIcon: const Icon(Icons.scale, color: Colors.white),
+                                suffixIcon: const Icon(Icons.scale, color: Colors.white70),
                                 enabledBorder: const UnderlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.white),
+                                  borderSide: BorderSide(color: Colors.white54),
                                 ),
                                 focusedBorder: const UnderlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.white),
+                                  borderSide: BorderSide(color: Colors.white54),
                                 ),
                               ),
                             ),
@@ -205,6 +205,14 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
                         ),
                       ),
                       onChanged: (value) {
+                        // Limitar el valor máximo a 250 USD en tiempo real
+                        final parsed = double.tryParse(value) ?? 0.0;
+                        if (parsed > 250.0) {
+                          // Reemplazar el texto por 250 y mover el cursor al final
+                          _precioController.text = '250';
+                          _precioController.selection = TextSelection.fromPosition(TextPosition(offset: _precioController.text.length));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El precio máximo permitido es 250 USD')));
+                        }
                         setState(() {});
                       },
                     ),
@@ -295,14 +303,34 @@ class _AnadirArticuloPantallaState extends State<AnadirArticuloPantalla> {
     final color = _colorController.text.trim();
     // Precio ingresado por el usuario en USD -> convertir a COP para el backend
     final precioUsd = double.tryParse(_precioController.text.trim()) ?? 0.0;
+    // Asegurar el máximo en el guardado también
+    if (precioUsd > 250.0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El precio no puede ser mayor a 250 USD.')));
+      return;
+    }
     final precio = CurrencyConverter.usdToCop(precioUsd);
     final peso = double.tryParse(_pesoController.text.trim()) ?? 0.0;
     final categoria = _categoriaSeleccionada;
     final urlImagen = _urlController.text.trim();
 
+    // Validación básica de URL de imagen: debe ser http/https y terminar en extensión de imagen
+    bool _isValidImageUrl(String url) {
+      final uri = Uri.tryParse(url);
+      if (uri == null || !(uri.isAbsolute) || (uri.scheme != 'http' && uri.scheme != 'https')) return false;
+      final path = uri.path.toLowerCase();
+      return path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.gif') || path.endsWith('.webp') || path.endsWith('.bmp');
+    }
+
     if (nombre.isEmpty || talla.isEmpty || color.isEmpty || precioUsd == 0.0 || peso == 0.0 || categoria == null || urlImagen.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, completa todos los campos.')),
+        const SnackBar(content: Text('Por favor, completa todos los campos. Asegúrate de seleccionar subcategoría para prellenar peso.')),
+      );
+      return;
+    }
+
+    if (!_isValidImageUrl(urlImagen)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La URL debe ser una imagen válida (http/https y terminar en .png/.jpg/.jpeg/.gif/.webp/.bmp).')),
       );
       return;
     }

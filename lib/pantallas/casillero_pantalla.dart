@@ -259,8 +259,11 @@ class _CasilleroPantallaState extends State<CasilleroPantalla> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/pagos');
+                          onPressed: _articulos.isEmpty
+                              ? null
+                              : () {
+                            // Pasar la lista de artículos a la pantalla de pagos
+                            Navigator.pushNamed(context, '/pagos', arguments: _articulos);
                           },
                           child: const Text(
                             'Ir a pagar',
@@ -357,7 +360,7 @@ class _ArticuloMiniCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: Color.fromRGBO(255,255,255,0.8), shape: BoxShape.circle),
                           child: IconButton(
                             icon: const Icon(Icons.edit, size: 18, color: Color(0xFF002B68)),
                             onPressed: onEdit,
@@ -366,7 +369,7 @@ class _ArticuloMiniCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: Color.fromRGBO(255,255,255,0.8), shape: BoxShape.circle),
                           child: IconButton(
                             icon: const Icon(Icons.delete, size: 18, color: Colors.redAccent),
                             onPressed: onDelete,

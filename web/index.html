@@ -20,6 +20,9 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
 
+  <!-- Make viewport behave like a mobile device -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -31,6 +34,55 @@
 
   <title>front_casillero_virtual</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Styles to center and constrain the Flutter app to a mobile-like width -->
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #f2f6fb; /* ligero fondo para diferenciar */
+    }
+    /* Centrar el contenido y darle un padding superior pequeño */
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 24px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* El tag principal que renderiza Flutter Web suele ser flt-glass-pane; aplicamos ancho móvil y estilos */
+    flt-glass-pane {
+      width: 412px; /* ancho típico móvil (puedes ajustar a 360/412 según prefieras) */
+      max-width: 100%;
+      min-height: calc(100vh - 48px);
+      box-shadow: 0 12px 40px rgba(2,6,23,0.16);
+      border-radius: 18px;
+      overflow: hidden;
+      background: white;
+    }
+
+    /* Asegurar que las capas internas ocupen el 100% del contenedor restringido */
+    #flutter-root, flt-platform-view, canvas, flt-glass-pane > * {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Pequeño ajuste cuando la pantalla es muy estrecha (responsive) */
+    @media (max-width: 440px) {
+      flt-glass-pane {
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        min-height: 100vh;
+      }
+      body { padding-top: 0; }
+    }
+  </style>
+
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
