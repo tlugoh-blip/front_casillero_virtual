@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'pantallas/login_pantalla.dart';
 import 'pantallas/olvidoncontraseña_pantalla.dart';
 import 'pantallas/home_pantalla.dart';
@@ -6,10 +7,14 @@ import 'pantallas/Registrar_pantalla.dart';
 import 'pantallas/casillero_pantalla.dart';
 import 'pantallas/pagos_pantalla.dart';
 import 'pantallas/estado_pantalla.dart';
-import 'pantallas/añadir_articulo.dart'; // ✅ cambiado (sin ñ y con guion bajo)
-import 'pantallas/welcome_pantalla.dart'; // <-- agregado
+import 'pantallas/añadir_articulo.dart';
+import 'pantallas/welcome_pantalla.dart';
 import 'pantallas/editar_articulo.dart';
 import 'models/articulo.dart';
+import 'pantallas/metodos_pago_pantalla.dart';
+
+// 🔹 Nueva pantalla que creamos
+import 'pantallas/TarjetaCreditoPantalla.dart';
 
 void main() {
   runApp(const MyApp());
@@ -37,18 +42,21 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegistrarPantalla(),
         '/casillero': (context) => const CasilleroPantalla(),
         '/pagos': (context) => const PagosPantalla(),
+        '/metodos_pago': (context) => const MetodosPagoPantalla(),
         '/estado': (context) => const EstadoPantalla(),
-        '/anadirarticulo': (context) => const AnadirArticuloPantalla(), // ✅ corregido
+        '/anadirarticulo': (context) => const AnadirArticuloPantalla(),
         '/editararticulo': (context) {
           final articuloArg = ModalRoute.of(context)!.settings.arguments as Articulo?;
           return EditarArticuloPantalla(articulo: articuloArg);
         },
+
+        // ⭐ NUEVA RUTA PARA LA PANTALLA DE TARJETA DE CRÉDITO
+        '/tarjeta_credito': (context) => const TarjetaCreditoPantalla(),
       },
     );
   }
 }
 
-// 🔹 Pantalla simple de pruebas
 class LauncherPantalla extends StatelessWidget {
   const LauncherPantalla({Key? key}) : super(key: key);
 
@@ -63,7 +71,6 @@ class LauncherPantalla extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
                 width: double.infinity,
@@ -73,6 +80,7 @@ class LauncherPantalla extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -81,14 +89,17 @@ class LauncherPantalla extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/olvidocontrasena'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/olvidocontrasena'),
                   child: const Text('Abrir Olvidé contraseña'),
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -97,6 +108,7 @@ class LauncherPantalla extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -105,6 +117,7 @@ class LauncherPantalla extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -112,14 +125,36 @@ class LauncherPantalla extends StatelessWidget {
                   child: const Text('Abrir Pagos'),
                 ),
               ),
+
               const SizedBox(height: 12),
 
-              // ✅ NUEVO BOTÓN
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () => Navigator.pushNamed(context, '/anadirarticulo'),
                   child: const Text('Abrir Añadir Artículo'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/metodos_pago'),
+                  child: const Text('Abrir Métodos de pago'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/tarjeta_credito'),
+                  child: const Text('Abrir Tarjeta de Crédito'),
                 ),
               ),
             ],
