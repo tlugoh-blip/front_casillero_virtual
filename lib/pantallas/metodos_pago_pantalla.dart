@@ -50,6 +50,14 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
             content: Text("Estado: ${data['status']} - ${data['mensaje']}"),
           ),
         );
+
+        // Después de procesar, navegar a pantalla de estado como en pagos_pantalla
+        Navigator.pushNamed(context, '/estado', arguments: {
+          'metodo': metodo,
+          'monto': 50000,
+          'respuesta': data,
+        });
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: ${respuesta.body}")),
@@ -96,29 +104,27 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: selected ? Colors.blue.shade100 : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
-              ),
+            // Ajuste: usar el mismo ancho que en `pagos_pantalla` (56)
+            SizedBox(
+              width: 56,
+              height: 56,
               child: assetImage != null
                   ? Image.asset(
-                assetImage,
-                width: 36,
-                height: 28,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Icon(
-                  icon ?? Icons.payment,
-                  size: 28,
-                  color: selected ? _azulFondo : Colors.black87,
-                ),
-              )
+                      assetImage,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        icon ?? Icons.payment,
+                        size: 28,
+                        color: selected ? _azulFondo : Colors.black87,
+                      ),
+                    )
                   : Icon(
-                icon ?? Icons.payment,
-                size: 28,
-                color: selected ? _azulFondo : Colors.black87,
-              ),
+                      icon ?? Icons.payment,
+                      size: 28,
+                      color: selected ? _azulFondo : Colors.black87,
+                    ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -145,11 +151,14 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
                 ],
               ),
             ),
-            Radio<String>(
-              value: id,
-              groupValue: _seleccion,
-              onChanged: (v) => setState(() => _seleccion = v),
-              activeColor: _azulFondo,
+            // Reemplazo del Radio (deprecado) por un icono indicador
+            SizedBox(
+              width: 36,
+              child: Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: selected ? _azulFondo : Colors.grey,
+                size: 28,
+              ),
             ),
           ],
         ),
@@ -179,7 +188,16 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _procesarPago();
+              // Si la selección es tarjeta de crédito, redirigir a la pantalla de tarjeta
+              if (_seleccion == 'credit') {
+                Navigator.pushNamed(context, '/tarjeta_credito', arguments: {
+                  'metodo': metodo,
+                  'monto': 50000,
+                });
+              } else {
+                // Para PSE o débito procesar directamente
+                _procesarPago();
+              }
             },
             child: const Text('Aceptar'),
           ),

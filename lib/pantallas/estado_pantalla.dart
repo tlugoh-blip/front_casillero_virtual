@@ -27,6 +27,68 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
           _articulos = List<Articulo>.from(art);
         }
         if (m is String) _metodo = m;
+
+        // Determinar si el pago fue confirmado por la pantalla de tarjeta
+        // Soportar varias claves posibles que el resto de la app pudiera enviar
+        final dynamic pagoFlag = args['paymentConfirmed'] ?? args['pagoAprobado'] ?? args['pagado'] ?? args['confirmadoPago'];
+        if (pagoFlag != null) {
+          bool confirmado = false;
+          if (pagoFlag is bool) confirmado = pagoFlag;
+          else if (pagoFlag is String) {
+            final s = pagoFlag.toLowerCase();
+            confirmado = (s == 'true' || s == '1' || s == 'si' || s == 'sí');
+          } else if (pagoFlag is num) {
+            confirmado = pagoFlag == 1;
+          }
+          _estado = confirmado ? 'Recibido' : 'En proceso';
+        }
+
+        // Nuevo: si llegan datos de resultado de pago (respuesta del API), usarlos
+        // Buscar primero en args['respuesta'] (usado por pantallas que pasan el resultado)
+        dynamic pagoResult;
+        if (args.containsKey('respuesta') && args['respuesta'] is Map) {
+          pagoResult = args['respuesta'];
+        } else if (args.containsKey('status') || args.containsKey('mensaje') || args.containsKey('id') || args.containsKey('metodo') || args.containsKey('metodoPago')) {
+          // args mismo podría ser el resultado
+          pagoResult = args;
+        }
+
+        if (pagoResult is Map) {
+          try {
+            print('[EstadoPantalla] pagoResult encontrado: $pagoResult');
+          } catch (_) {}
+
+          final statusRaw = (pagoResult['status'] ?? pagoResult['estado'] ?? pagoResult['estadoPago'])?.toString();
+          if (statusRaw != null) {
+            final s = statusRaw.toLowerCase();
+            if (s.contains('aprob') || s.contains('aprobado') || s.contains('approved') || s.contains('ok') || s == 'true') {
+              _estado = 'Aprobado';
+            } else if (s.contains('rechaz') || s.contains('rejected')) {
+              _estado = 'Rechazado';
+            } else if (s.contains('pend') || s.contains('pending')) {
+              _estado = 'Pendiente';
+            } else {
+              _estado = statusRaw[0].toUpperCase() + statusRaw.substring(1);
+            }
+          }
+
+          // Obtener método desde resultado (dando preferencia a keys esperadas)
+          final methodRaw = (pagoResult['metodo'] ?? pagoResult['metodoPago'] ?? pagoResult['paymentMethod'] ?? args['metodo'])?.toString();
+          if (methodRaw != null && methodRaw.isNotEmpty) {
+            final lower = methodRaw.toLowerCase();
+            if (lower.contains('tarjeta') || lower.contains('card') || lower.contains('tarj')) {
+              _metodo = 'Tarjeta Crédito';
+            } else if (lower.contains('pse')) {
+              _metodo = 'PSE';
+            } else if (lower.contains('debito') || lower.contains('deb')) {
+              _metodo = 'Tarjeta Débito';
+            } else if (lower.contains('efectivo')) {
+              _metodo = 'Efectivo';
+            } else {
+              _metodo = methodRaw;
+            }
+          }
+        }
       }
       _inited = true;
     }
@@ -34,12 +96,15 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
 
   Color _colorForEstado(String e) {
     switch (e.toLowerCase()) {
+      case 'aprobado':
       case 'recibido':
         return Colors.green;
       case 'en proceso':
       case 'enproceso':
+      case 'pendiente':
         return Colors.orange;
       case 'cancelado':
+      case 'rechazado':
         return Colors.red;
       default:
         return Colors.grey;
@@ -133,65 +198,9 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
 
                     const SizedBox(height: 12),
 
-                    // Botones de acciones
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _estado = 'Recibido';
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como recibido')));
-                            },
-                            child: const Text('Confirmar recibido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _estado = 'Cancelado';
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como no recibido/cancelado')));
-                            },
-                            child: const Text('No recibido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-
+                    // Acciones manuales eliminadas: el estado solo se muestra y se determina
+                    // a partir de la información proveniente de la pantalla de pago.
                     const SizedBox(height: 12),
-
-                    // Opcional: permitir cambiar a 'En proceso'
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.orange,
-                          side: BorderSide(color: Colors.orange.shade700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _estado = 'En proceso';
-                          });
-                        },
-                        child: const Text('Marcar como en proceso', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -202,4 +211,3 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
     );
   }
 }
-

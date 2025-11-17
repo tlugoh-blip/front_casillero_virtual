@@ -212,4 +212,80 @@ class ApiService {
     return response;
   }
 
+  // Nuevo método: procesar pago (simulación o persistir según parámetro)
+  static Future<Map<String, dynamic>> procesarPago({
+    required String metodo,
+    required double monto,
+    String? numeroTarjeta,
+    String? nombre,
+    String? fecha,
+    String? cvv,
+    bool persistir = true,
+  }) async {
+    final uri = Uri.parse('$baseUrl/pagos/procesar').replace(queryParameters: persistir ? {'persistir': 'true'} : null);
+
+    final body = <String, dynamic>{
+      // claves que el backend espera (según PagoRequestDTO)
+      'metodoPago': metodo,
+      'elNombre': nombre,
+      // claves legacy / adicionales por compatibilidad
+      'metodo': metodo,
+      'nombre': nombre,
+      'monto': monto,
+      'numeroTarjeta': numeroTarjeta,
+      'fecha': fecha,
+      'cvv': cvv,
+    };
+
+    // DEBUG: imprimir payload
+    try {
+      print('[ApiService.procesarPago] POST $uri');
+      print('[ApiService.procesarPago] body: ${jsonEncode(body)}');
+    } catch (_) {}
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+
+    // Intentar parsear respuesta JSON y devolver mapa
+    try {
+      final decoded = jsonDecode(response.body);
+      print('[ApiService.procesarPago] response: ${response.statusCode} ${response.body}');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (decoded is Map<String, dynamic>) return decoded;
+        return {'data': decoded};
+      } else {
+        throw Exception('Error al procesar pago: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Respuesta inválida del servidor: ${response.body}');
+    }
+  }
+
+  // Nuevo: obtener historial de pagos
+  static Future<List<Map<String, dynamic>>> getPagos() async {
+    final url = Uri.parse('$baseUrl/pagos');
+    try {
+      final response = await http.get(url);
+      print('[ApiService.getPagos] GET $url -> ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return List<Map<String, dynamic>>.from(decoded.map((e) => e as Map<String, dynamic>));
+        } else if (decoded is Map && decoded.containsKey('data') && decoded['data'] is List) {
+          return List<Map<String, dynamic>>.from(decoded['data'].map((e) => e as Map<String, dynamic>));
+        } else {
+          throw Exception('Formato inesperado de respuesta en getPagos');
+        }
+      } else {
+        throw Exception('Error al obtener pagos: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('[ApiService.getPagos] error: $e');
+      rethrow;
+    }
+  }
+
 }

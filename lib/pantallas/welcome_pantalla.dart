@@ -56,7 +56,7 @@ class WelcomePantalla extends StatelessWidget {
                     side: const BorderSide(color: Colors.white54),
                   ),
                   onPressed: () {
-                    // Navega a la ruta '/' que corresponde a LauncherPantalla en main.dart
+                    // Navega al launcher ('/') que contiene los botones para revisar todas las pantallas
                     Navigator.pushNamed(context, '/');
                   },
                   child: const Text('Explorar pantallas (dev)'),

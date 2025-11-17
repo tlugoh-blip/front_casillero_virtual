@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:front_casillero_virtual/pantallas/historial_pantalla.dart';
 
 import 'pantallas/login_pantalla.dart';
 import 'pantallas/olvidoncontraseña_pantalla.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
         '/pagos': (context) => const PagosPantalla(),
         '/metodos_pago': (context) => const MetodosPagoPantalla(),
         '/estado': (context) => const EstadoPantalla(),
+        '/historial': (context) => const HistorialPantalla(),
         '/anadirarticulo': (context) => const AnadirArticuloPantalla(),
         '/editararticulo': (context) {
           final articuloArg = ModalRoute.of(context)!.settings.arguments as Articulo?;
@@ -155,6 +157,30 @@ class LauncherPantalla extends StatelessWidget {
                   onPressed: () =>
                       Navigator.pushNamed(context, '/tarjeta_credito'),
                   child: const Text('Abrir Tarjeta de Crédito'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/estado'),
+                  child: const Text('Abrir Estado del Pedido'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/historial'),
+                  child: const Text('Abrir Historial Compras'),
                 ),
               ),
             ],
