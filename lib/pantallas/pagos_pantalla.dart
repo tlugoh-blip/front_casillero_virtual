@@ -234,6 +234,17 @@ class _PagosPantallaState extends State<PagosPantalla> {
                                       'articulos': _articulos,
                                     },
                                   );
+                                } else if (_metodoSeleccionado == 'Tarjeta Débito') {
+                                  // Abrir pantalla de débito con los mismos argumentos
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/tarjeta_debito',
+                                    arguments: {
+                                      'metodo': metodoEnviar,
+                                      'monto': _total,
+                                      'articulos': _articulos,
+                                    },
+                                  );
                                 } else {
                                   // Navegar a pantalla de estado pasando articulos y metodo
                                   Navigator.pushNamed(
