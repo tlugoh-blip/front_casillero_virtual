@@ -1,40 +1,7 @@
 import 'package:flutter/material.dart';
 
-class OlvidoContrasenaPantalla extends StatefulWidget {
+class OlvidoContrasenaPantalla extends StatelessWidget {
   const OlvidoContrasenaPantalla({Key? key}) : super(key: key);
-
-  @override
-  _OlvidoContrasenaPantallaState createState() => _OlvidoContrasenaPantallaState();
-}
-
-class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _confirmEmailController = TextEditingController();
-
-  bool _isLoading = false;
-
-  Future<void> _recuperarContrasena() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulación del proceso de recuperación
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Correo de recuperación enviado correctamente"),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // Aquí puedes redirigir a otra pantalla
-    // Navigator.pushNamed(context, '/restablecer_contrasena');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +70,12 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
               const SizedBox(height: 40),
 
               // Campo: Correo electrónico
-              _buildTextField("Correo electrónico", _emailController),
+              _buildTextField("Correo electrónico"),
 
               const SizedBox(height: 20),
 
               // Campo: Confirmar correo
-              _buildTextField("Confirmar correo electrónico", _confirmEmailController),
+              _buildTextField("Confirmar correo electrónico"),
 
               const SizedBox(height: 40),
 
@@ -116,7 +83,9 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _recuperarContrasena,
+                  onPressed: () {
+                    // Acción del botón eliminada
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0052CC),
                     shape: RoundedRectangleBorder(
@@ -124,9 +93,7 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 18),
                   ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
+                  child: const Text(
                     "Recuperar",
                     style: TextStyle(
                       fontSize: 22,
@@ -154,7 +121,7 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(String label) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -162,7 +129,6 @@ class _OlvidoContrasenaPantallaState extends State<OlvidoContrasenaPantalla> {
             style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
-          controller: controller,
           keyboardType: TextInputType.emailAddress,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(

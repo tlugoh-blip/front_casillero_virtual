@@ -81,7 +81,15 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
     final bool selected = _seleccion == id;
 
     return GestureDetector(
-      onTap: () => setState(() => _seleccion = id),
+      onTap: () {
+        setState(() => _seleccion = id);
+        // Navegar a la pantalla correspondiente según el método de pago
+        if (id == 'debit') {
+          Navigator.pushNamed(context, '/tarjeta_debito', arguments: {
+            'monto': 50000,
+          });
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeInOut,
@@ -194,8 +202,13 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
                   'metodo': metodo,
                   'monto': 50000,
                 });
+              } else if (_seleccion == 'debit') {
+                Navigator.pushNamed(context, '/tarjeta_debito', arguments: {
+                  'metodo': metodo,
+                  'monto': 50000,
+                });
               } else {
-                // Para PSE o débito procesar directamente
+                // Para PSE procesar directamente
                 _procesarPago();
               }
             },

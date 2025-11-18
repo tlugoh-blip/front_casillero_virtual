@@ -14,8 +14,9 @@ import 'pantallas/editar_articulo.dart';
 import 'models/articulo.dart';
 import 'pantallas/metodos_pago_pantalla.dart';
 
-// 🔹 Nueva pantalla que creamos
+// ⭐ Nuevas pantallas
 import 'pantallas/TarjetaCreditoPantalla.dart';
+import 'pantallas/TarjetaDebitoPantalla.dart';
 
 void main() {
   runApp(const MyApp());
@@ -47,13 +48,16 @@ class MyApp extends StatelessWidget {
         '/estado': (context) => const EstadoPantalla(),
         '/historial': (context) => const HistorialPantalla(),
         '/anadirarticulo': (context) => const AnadirArticuloPantalla(),
+
         '/editararticulo': (context) {
-          final articuloArg = ModalRoute.of(context)!.settings.arguments as Articulo?;
+          final articuloArg =
+          ModalRoute.of(context)!.settings.arguments as Articulo?;
           return EditarArticuloPantalla(articulo: articuloArg);
         },
 
-        // ⭐ NUEVA RUTA PARA LA PANTALLA DE TARJETA DE CRÉDITO
+        // ⭐ Rutas nuevas
         '/tarjeta_credito': (context) => const TarjetaCreditoPantalla(),
+        '/tarjeta_debito': (context) => const TarjetaDebitoPantalla(),
       },
     );
   }
@@ -133,7 +137,8 @@ class LauncherPantalla extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/anadirarticulo'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/anadirarticulo'),
                   child: const Text('Abrir Añadir Artículo'),
                 ),
               ),
@@ -150,7 +155,7 @@ class LauncherPantalla extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
+              // ⭐ Botón Tarjeta de Crédito
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -162,24 +167,33 @@ class LauncherPantalla extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
+              // ⭐ Botón Tarjeta de Débito
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () =>
-                      Navigator.pushNamed(context, '/estado'),
+                      Navigator.pushNamed(context, '/tarjeta_debito'),
+                  child: const Text('Abrir Tarjeta de Débito'),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Otros botones
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/estado'),
                   child: const Text('Abrir Estado del Pedido'),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // ⭐ BOTÓN PARA PROBAR LA NUEVA PANTALLA
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/historial'),
+                  onPressed: () => Navigator.pushNamed(context, '/historial'),
                   child: const Text('Abrir Historial Compras'),
                 ),
               ),

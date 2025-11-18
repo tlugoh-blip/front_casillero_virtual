@@ -6,25 +6,19 @@ import '../api_service.dart';
 class ExpiryDateInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    // Normalizar solo a dígitos
     String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
     if (digits.length > 4) digits = digits.substring(0, 4);
-
     String formatted;
     if (digits.length == 0) {
       formatted = '';
     } else if (digits.length == 1) {
       formatted = digits;
     } else if (digits.length == 2) {
-      // insertar la barra inmediatamente después de MM
       formatted = digits + '/';
     } else {
       formatted = digits.substring(0, 2) + '/' + digits.substring(2);
     }
-
-    // Mover el cursor al final para comportamiento sencillo y predecible
     final selectionIndex = formatted.length;
-
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: selectionIndex),
@@ -32,14 +26,14 @@ class ExpiryDateInputFormatter extends TextInputFormatter {
   }
 }
 
-class TarjetaCreditoPantalla extends StatefulWidget {
-  const TarjetaCreditoPantalla({Key? key}) : super(key: key);
+class TarjetaDebitoPantalla extends StatefulWidget {
+  const TarjetaDebitoPantalla({Key? key}) : super(key: key);
 
   @override
-  State<TarjetaCreditoPantalla> createState() => _TarjetaCreditoPantallaState();
+  State<TarjetaDebitoPantalla> createState() => _TarjetaDebitoPantallaState();
 }
 
-class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
+class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
   final Color azulFondo = const Color(0xFF002B68); // azul igual que home y editar perfil
   final Color azulOscuro = const Color(0xFF0648A5); // azul oscuro igual que home y editar perfil
 
@@ -49,8 +43,8 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
   final TextEditingController _cvcController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
-  double _monto = 0.0; // monto enviado desde la pantalla anterior
-  String _metodoFromArgs = 'Tarjeta Crédito';
+  double _monto = 0.0;
+  String _metodoFromArgs = 'Tarjeta Débito';
   bool _initedArgs = false;
 
   @override
@@ -59,7 +53,6 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
     if (!_initedArgs) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is Map) {
-        // intentar leer monto y método
         if (args.containsKey('monto')) {
           final m = args['monto'];
           if (m is int) _monto = m.toDouble();
@@ -70,7 +63,6 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
           }
         }
         if (args.containsKey('metodo')) {
-          // usar el método tal cual fue pasado por la pantalla anterior
           _metodoFromArgs = args['metodo']?.toString() ?? _metodoFromArgs;
         }
       }
@@ -83,10 +75,9 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
     return Scaffold(
       backgroundColor: azulFondo,
       body: SafeArea(
-        child: SingleChildScrollView( // 🔹 evita overflow en pantallas pequeñas
+        child: SingleChildScrollView(
           child: Column(
             children: [
-              // BOTÓN REGRESAR
               Padding(
                 padding: const EdgeInsets.only(left: 16, top: 8),
                 child: Align(
@@ -98,23 +89,16 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 4),
-
-              // TÍTULO
               const Text(
-                "Tarjeta de crédito",
+                "Tarjeta de débito",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 22),
-
-              // IMAGEN DE TARJETA
-              // IMAGEN DE TARJETA
               Container(
                 width: 350,
                 height: 190,
@@ -122,16 +106,13 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
                 ),
-                clipBehavior: Clip.hardEdge, // 🔥 IMPORTANTE: recorta bordes para que la imagen ocupe todo
+                clipBehavior: Clip.hardEdge,
                 child: Image.asset(
-                  "assets/imagenes/credito.png",
-                  fit: BoxFit.cover, // 🔥 La imagen ahora SÍ llena todo el contenedor
+                  "assets/imagenes/tarjetadebito.webp",
+                  fit: BoxFit.cover,
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // FORMULARIO
               Form(
                 key: _formKey,
                 child: Container(
@@ -156,10 +137,7 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // BOTÓN PAGAR
               SizedBox(
                 width: double.infinity,
                 height: 62,
@@ -167,79 +145,47 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                   padding: const EdgeInsets.symmetric(horizontal: 22),
                   child: ElevatedButton(
                     onPressed: () async {
-                      // Validar el formulario antes de proceder
                       if (_formKey.currentState?.validate() ?? false) {
-                        // Mostrar dialogo de carga
                         showDialog(
                           context: context,
                           barrierDismissible: false,
                           builder: (_) => const Center(child: CircularProgressIndicator()),
                         );
-
                         try {
                           final numero = _cardNumberController.text.replaceAll(RegExp(r'\D'), '');
-                          final expiry = _expiryController.text; // MM/AA
+                          final expiry = _expiryController.text;
                           final cvc = _cvcController.text;
                           final nombre = _nameController.text.trim();
-
-                          // DEBUG: mostrar el payload que enviaremos
-                          try {
-                            print('[TarjetaCreditoPantalla] Enviando pago con payload: ');
-                            print('  metodo: $_metodoFromArgs');
-                            print('  monto: $_monto');
-                            print('  nombre: $nombre');
-                            print('  numeroTarjeta: $numero');
-                            print('  fecha: $expiry');
-                          } catch (_) {}
-
-                          // Llamar al API para procesar pago y persistirlo
                           final result = await ApiService.procesarPago(
                             metodo: _metodoFromArgs,
-                            monto: _monto, // uso del monto real pasado en arguments
+                            monto: _monto,
                             numeroTarjeta: numero,
                             nombre: nombre,
                             fecha: expiry,
                             cvv: cvc,
                             persistir: true,
                           );
-
-                          // Asegurar que la respuesta tenga 'nombre' y 'metodo' (fallback a lo enviado)
-                          try {
-                            if (result is Map<String, dynamic>) {
-                              if (result['nombre'] == null || (result['nombre'] is String && (result['nombre'] as String).trim().isEmpty)) {
-                                result['nombre'] = nombre;
-                              }
-                              if (result['metodo'] == null || (result['metodo'] is String && (result['metodo'] as String).trim().isEmpty)) {
-                                result['metodo'] = _metodoFromArgs;
-                              }
-                            }
-                          } catch (_) {}
-
-                          // Cerrar el dialogo de carga
+                          if (result['nombre'] == null || (result['nombre'] is String && (result['nombre'] as String).trim().isEmpty)) {
+                            result['nombre'] = nombre;
+                          }
+                          if (result['metodo'] == null || (result['metodo'] is String && (result['metodo'] as String).trim().isEmpty)) {
+                            result['metodo'] = _metodoFromArgs;
+                          }
                           if (context.mounted) Navigator.of(context).pop();
-
-                          // Mostrar resultado y navegar a estado
                           final status = result['status'] ?? result['status'];
                           final mensaje = result['mensaje'] ?? 'Pago procesado';
-
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('$status: $mensaje')),
                           );
-
-                          // Navegar a la pantalla de estado (si existe ruta '/estado')
                           if (context.mounted) {
                             Navigator.pushNamed(context, '/estado', arguments: result);
                           }
-
                         } catch (e) {
-                          // Cerrar el dialogo si hay error
                           if (context.mounted) Navigator.of(context).pop();
-
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Error al procesar el pago: ${e.toString()}')),
                           );
                         }
-
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Corrige los errores antes de continuar')),
@@ -264,7 +210,6 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
             ],
           ),
@@ -273,7 +218,6 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
     );
   }
 
-  // 🔹 WIDGET DE CAMPO EDITABLE
   Widget _inputCampoNumeroTarjeta() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,7 +280,7 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
           keyboardType: TextInputType.datetime,
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(4), // limitar a 4 dígitos (MMYY)
+            LengthLimitingTextInputFormatter(4),
             ExpiryDateInputFormatter(),
           ],
           style: const TextStyle(color: Colors.white),
@@ -357,22 +301,14 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
             final regex = RegExp(r'^(0[1-9]|1[0-2])/(\d{2})$');
             final match = regex.firstMatch(value);
             if (match == null) return 'Formato inválido (MM/AA)';
-
             final mm = int.parse(match.group(1)!);
             final yy = int.parse(match.group(2)!);
-
             final now = DateTime.now();
             final currentMM = now.month;
             final currentYY = now.year % 100;
-
             if (mm == currentMM && yy == currentYY) {
               return 'La fecha no puede ser igual al mes/año actual';
             }
-
-            // Opcional: también puedes evitar fechas ya vencidas (<= actual)
-            // final exp = DateTime(2000 + yy, mm);
-            // if (!exp.isAfter(DateTime(now.year, now.month))) return 'La tarjeta está vencida';
-
             return null;
           },
         ),

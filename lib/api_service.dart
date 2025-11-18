@@ -287,5 +287,4 @@ class ApiService {
       rethrow;
     }
   }
-
 }
