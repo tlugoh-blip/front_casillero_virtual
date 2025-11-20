@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
+import '../api_service.dart';
+
+// Campos para estimado de importación
+// (se colocan en la parte superior del archivo por claridad)
 
 class PagosPantalla extends StatefulWidget {
   const PagosPantalla({Key? key}) : super(key: key);
@@ -14,6 +18,54 @@ class _PagosPantallaState extends State<PagosPantalla> {
   String? _metodoSeleccionado;
   bool _inited = false;
 
+  // Estimado de importación
+  double _pesoTotalLb = 0.0;
+  double _costoEnvioUsd = 0.0;
+  double _costoSeguroUsd = 0.0;
+  double _impuestosUsd = 0.0;
+  double _costoImportUsd = 0.0;
+  int get _costoImportCop => CurrencyConverter.usdToCop(_costoImportUsd);
+  int get _totalFinal => _total + _costoImportCop;
+
+  double _pesoEstimadoPorArticulo(Articulo a) {
+    if (a.peso > 0) return a.peso;
+    final cat = a.categoria.toLowerCase();
+    if (cat.contains('buso') || cat.contains('sudadera') || cat.contains('buzo')) return 1.2;
+    if (cat.contains('chaqueta') || cat.contains('campera') || cat.contains('abrigo')) return 2.0;
+    if (cat.contains('pantalon') || cat.contains('jean')) return 1.3;
+    if (cat.contains('pantaloneta') || cat.contains('short')) return 0.7;
+    if (cat.contains('zapato') || cat.contains('tenis') || cat.contains('sneaker')) return 2.5;
+    if (cat.contains('gorra') || cat.contains('accesorio')) return 0.3;
+    if (cat.contains('camisa') || cat.contains('tee') || cat.contains('playera')) return 0.6;
+    return 1.0;
+  }
+
+  void _calcularEstimado() {
+    double peso = 0.0;
+    int valorCop = 0;
+    for (final a in _articulos) {
+      peso += _pesoEstimadoPorArticulo(a);
+      valorCop += a.valorUnitario;
+    }
+    const double ratePerLbUsd = 6.0;
+    const double seguroPct = 0.01;
+    const double impuestosPct = 0.05;
+
+    final valorUsd = CurrencyConverter.copToUsd(valorCop);
+    final envioUsd = peso * ratePerLbUsd;
+    final seguroUsd = valorUsd * seguroPct;
+    final impuestosUsd = valorUsd * impuestosPct;
+    final totalImportUsd = envioUsd + seguroUsd + impuestosUsd;
+
+    setState(() {
+      _pesoTotalLb = double.parse(peso.toStringAsFixed(2));
+      _costoEnvioUsd = double.parse(envioUsd.toStringAsFixed(2));
+      _costoSeguroUsd = double.parse(seguroUsd.toStringAsFixed(2));
+      _impuestosUsd = double.parse(impuestosUsd.toStringAsFixed(2));
+      _costoImportUsd = double.parse(totalImportUsd.toStringAsFixed(2));
+    });
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -21,8 +73,32 @@ class _PagosPantallaState extends State<PagosPantalla> {
       final args = ModalRoute.of(context)!.settings.arguments;
       if (args is List<Articulo>) {
         _articulos.addAll(args);
+        // calcular estimado si recibimos articulos
+        _calcularEstimado();
+      } else {
+        // intentar obtener artículos desde el backend si no llegaron por args
+        _fetchArticulosFromApi();
       }
       _inited = true;
+    }
+  }
+
+  // Si no se recibieron artículos por argumentos, intentar obtenerlos del backend
+  Future<void> _fetchArticulosFromApi() async {
+    try {
+      final userId = await ApiService.getUserId();
+      if (userId == null) return;
+      final casilleroId = await ApiService.getCasilleroId(userId);
+      if (casilleroId == null) return;
+      final articulos = await ApiService.getArticulosPorCasillero(casilleroId);
+      if (articulos.isNotEmpty) {
+        setState(() => _articulos.addAll(articulos));
+        _calcularEstimado();
+      }
+    } catch (e) {
+      try {
+        print('[PagosPantalla] Error fetchArticulosFromApi: $e');
+      } catch (_) {}
     }
   }
 
@@ -182,17 +258,73 @@ class _PagosPantallaState extends State<PagosPantalla> {
                           trailing: Text(CurrencyConverter.formatCop(a.valorUnitario)),
                         )),
 
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text(CurrencyConverter.formatCop(_total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF002B68))),
-                      ],
-                    ),
+                    // NUEVO: Card con desglose de costo de importación
+                    if (_articulos.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Peso total', style: TextStyle(fontWeight: FontWeight.w600)),
+                                  Text('$_pesoTotalLb lb'),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Envío (estimado)'),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(CurrencyConverter.formatUsd(_costoEnvioUsd)), Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoEnvioUsd)), style: const TextStyle(color: Colors.black54))]),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Seguro (1%)'),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(CurrencyConverter.formatUsd(_costoSeguroUsd)), Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoSeguroUsd)), style: const TextStyle(color: Colors.black54))]),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Impuestos (5%)'),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(CurrencyConverter.formatUsd(_impuestosUsd)), Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_impuestosUsd)), style: const TextStyle(color: Colors.black54))]),
+                                ],
+                              ),
+                              const Divider(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Costo importación'),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(CurrencyConverter.formatUsd(_costoImportUsd), style: const TextStyle(fontWeight: FontWeight.bold)), Text(CurrencyConverter.formatCop(_costoImportCop), style: const TextStyle(color: Colors.black54))]),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total (prendas + importación)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text(CurrencyConverter.formatCop(_totalFinal), style: const TextStyle(fontWeight: FontWeight.bold)), Text(CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(_totalFinal)), style: const TextStyle(color: Colors.black54))]),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 12),
-                    const SizedBox(height: 8),
+                    const Divider(),
+
+                    // Botón de continuar
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -223,39 +355,19 @@ class _PagosPantallaState extends State<PagosPantalla> {
                                   print('[PagosPantalla] Normalized metodo: $metodoEnviar, monto: $_total, articulos: ${_articulos.length}');
                                 } catch (_) {}
 
-                                // Si la opción es Tarjeta Crédito, abrir la pantalla de tarjeta con monto y articulos
-                                if (_metodoSeleccionado == 'Tarjeta Crédito') {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/tarjeta_credito',
-                                    arguments: {
-                                      'metodo': metodoEnviar,
-                                      'monto': _total,
-                                      'articulos': _articulos,
-                                    },
-                                  );
-                                } else if (_metodoSeleccionado == 'Tarjeta Débito') {
-                                  // Abrir pantalla de débito con los mismos argumentos
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/tarjeta_debito',
-                                    arguments: {
-                                      'metodo': metodoEnviar,
-                                      'monto': _total,
-                                      'articulos': _articulos,
-                                    },
-                                  );
-                                } else {
-                                  // Navegar a pantalla de estado pasando articulos y metodo
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/estado',
-                                    arguments: {
-                                      'articulos': _articulos,
-                                      'metodo': metodoEnviar,
-                                    },
-                                  );
-                                }
+                                // Navegar a la pantalla de métodos de pago para mostrar el desglose
+                                Navigator.pushNamed(
+                                  context,
+                                  '/metodos_pago',
+                                  arguments: {
+                                    'articulos': _articulos,
+                                    'valorTotalCop': _total,
+                                    'pesoTotalLb': _pesoTotalLb,
+                                    'costoImportUsd': _costoImportUsd,
+                                    // pasamos también el método seleccionado (normalizado)
+                                    'metodoEnviar': metodoEnviar,
+                                  },
+                                );
                               },
                         child: const Text('Continuar', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       ),

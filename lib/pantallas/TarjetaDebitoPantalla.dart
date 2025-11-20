@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api_service.dart';
+import '../models/articulo.dart';
 
 // Formatter que inserta automáticamente '/' después de los dos primeros dígitos
 class ExpiryDateInputFormatter extends TextInputFormatter {
@@ -46,6 +47,7 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
   double _monto = 0.0;
   String _metodoFromArgs = 'Tarjeta Débito';
   bool _initedArgs = false;
+  List<dynamic> _articulosCompradas = [];
 
   @override
   void didChangeDependencies() {
@@ -64,6 +66,16 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
         }
         if (args.containsKey('metodo')) {
           _metodoFromArgs = args['metodo']?.toString() ?? _metodoFromArgs;
+        }
+      }
+      if (args is Map && args.containsKey('articulos')) {
+        try {
+          final raw = args['articulos'];
+          if (raw is List) {
+            _articulosCompradas = raw.toList(); // puede contener Articulo o Map
+          }
+        } catch (_) {
+          _articulosCompradas = [];
         }
       }
       _initedArgs = true;
@@ -107,9 +119,19 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 clipBehavior: Clip.hardEdge,
-                child: Image.asset(
-                  "assets/imagenes/tarjetadebito.webp",
-                  fit: BoxFit.cover,
+                // dejamos un padding interno y usamos BoxFit.contain para que la imagen
+                // no llene todo el contenedor y se vea como un borde alrededor.
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Center(
+                    child: Image.asset(
+                      "assets/imagenes/tarjetadebito.webp",
+                      fit: BoxFit.contain,
+                      // opcional: limitar el ancho para mayor control
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -178,7 +200,31 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
                             SnackBar(content: Text('$status: $mensaje')),
                           );
                           if (context.mounted) {
-                            Navigator.pushNamed(context, '/estado', arguments: result);
+                            // No borramos desde el front: pasamos los IDs en 'removed_ids' para que
+                            // Casillero los procese al volver.
+                            final List<int> removedIds = [];
+                            try {
+                              for (final a in _articulosCompradas) {
+                                if (a == null) continue;
+                                if (a is Articulo) {
+                                  if (a.id != null) removedIds.add(a.id!);
+                                } else if (a is Map) {
+                                  final dynamic idRaw = a['id'] ?? a['id_articulo'] ?? a['idArticulo'];
+                                  final int? aid = idRaw is int ? idRaw : int.tryParse('$idRaw');
+                                  if (aid != null) removedIds.add(aid);
+                                }
+                              }
+                            } catch (_) {}
+
+                            try { print('[TarjetaDebitoPantalla] removedIds: $removedIds'); } catch (_) {}
+
+                            final argsNav = {
+                              'respuesta': result,
+                              'articulos': _articulosCompradas,
+                              'paymentConfirmed': true,
+                              'removed_ids': removedIds,
+                            };
+                            Navigator.pushNamed(context, '/estado', arguments: argsNav);
                           }
                         } catch (e) {
                           if (context.mounted) Navigator.of(context).pop();

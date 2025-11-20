@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'editarperfil_pantalla.dart';
 import '../api_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class HomePantalla extends StatefulWidget {
   const HomePantalla({Key? key}) : super(key: key);
@@ -12,6 +14,7 @@ class HomePantalla extends StatefulWidget {
 
 class _HomePantallaState extends State<HomePantalla> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   // Data de marcas: nombre legible, asset y url (si aplica)
   final List<Map<String, String?>> _allBrands = [
@@ -58,25 +61,44 @@ class _HomePantallaState extends State<HomePantalla> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
+  int _pagesCount() {
+    if (_filteredBrands.isEmpty) return 0;
+    return (_filteredBrands.length + 5) ~/ 6; // ceil division for 6 items per page
+  }
+
   void _onSearchChanged() {
-    final query = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _filteredBrands = List.from(_allBrands);
-      } else {
-        _filteredBrands = _allBrands
-            .where((b) => (b['name'] ?? '').toLowerCase().contains(query))
-            .toList();
+    // Debounce para evitar rebuilds demasiado frecuentes
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      final query = _searchController.text.trim().toLowerCase();
+      setState(() {
+        if (query.isEmpty) {
+          _filteredBrands = List.from(_allBrands);
+        } else {
+          _filteredBrands = _allBrands
+              .where((b) => (b['name'] ?? '').toLowerCase().contains(query))
+              .toList();
+        }
+        // Al cambiar la búsqueda, volver a la página 0 si hay páginas
+        _currentPage = 0;
+      });
+
+      // Mover el PageController a la página 0 con seguridad
+      final pages = _pagesCount();
+      if (pages > 0 && _pageController.hasClients) {
+        try {
+          _pageController.jumpToPage(0);
+        } catch (_) {
+          // ignorar si por alguna razón el page controller no puede saltar
+        }
       }
-      // Al cambiar la búsqueda, volver a la página 0
-      _currentPage = 0;
-      _pageController.jumpToPage(0);
     });
   }
 
@@ -96,6 +118,8 @@ class _HomePantallaState extends State<HomePantalla> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF003366),
+      // Colocamos la barra inferior aquí para que sea fija y siempre visible
+      bottomNavigationBar: const SizedBox(height: 84, child: BottomNavBar(selectedIndex: 0)),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -210,7 +234,7 @@ class _HomePantallaState extends State<HomePantalla> {
                             height: MediaQuery.of(context).size.height * 0.5,
                             child: PageView.builder(
                               controller: _pageController,
-                              itemCount: ((_filteredBrands.length + 5) / 6).floor(),
+                              itemCount: _pagesCount(),
                               onPageChanged: (p) => setState(() => _currentPage = p),
                               itemBuilder: (context, pageIndex) {
                                 final start = pageIndex * 6;
@@ -233,11 +257,13 @@ class _HomePantallaState extends State<HomePantalla> {
                           // Controles numerados (hipervínculos 1..N)
                           Wrap(
                             spacing: 8,
-                            children: List.generate(((_filteredBrands.length + 5) / 6).floor(), (i) {
+                            children: List.generate(_pagesCount(), (i) {
                               final isSelected = i == _currentPage;
                               return TextButton(
                                 onPressed: () {
-                                  _pageController.animateToPage(i, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                                  if (_pageController.hasClients) {
+                                    _pageController.animateToPage(i, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                                  }
                                 },
                                 style: TextButton.styleFrom(
                                   foregroundColor: isSelected ? Colors.white : Colors.white70,
@@ -250,68 +276,8 @@ class _HomePantallaState extends State<HomePantalla> {
                       ),
               ),
 
-              const SizedBox(height: 20),
-
-              // Barra de navegación inferior
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF003366),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // Cambié la etiqueta a 'Home' y quité const para permitir callbacks
-                    _NavBarItem(
-                      icon: Icons.home,
-                      label: 'Home',
-                      selected: true,
-                      onTap: () {
-                        // Podrías navegar a la misma pantalla /home o refrescar
-                        Navigator.pushReplacementNamed(context, '/home');
-                      },
-                    ),
-
-                    _NavBarItem(
-                      icon: Icons.search,
-                      label: 'Buscar',
-                      onTap: () {
-                        // Implementa búsqueda cuando exista la pantalla
-                      },
-                    ),
-
-                    // Reinsertamos el ítem de Pagos
-                    _NavBarItem(
-                      icon: Icons.payment,
-                      label: 'Pagos',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/pagos');
-                      },
-                    ),
-
-                    // Nuevo icono para navegar al casillero del usuario
-                    _NavBarItem(
-                      icon: Icons.inventory, // icono elegido
-                      label: 'Mi casillero',
-                      onTap: () {
-                        Navigator.pushNamed(context, '/casillero');
-                      },
-                    ),
-
-                    _NavBarItem(
-                      icon: Icons.history,
-                      label: 'Historial',
-                      onTap: () {
-                        // Implementa historial cuando exista la pantalla
-                      },
-                    ),
-                  ],
-                ),
-              ),
+              // Espacio al final para que el contenido no quede oculto por la barra inferior fija
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -364,47 +330,6 @@ class _HomePantallaState extends State<HomePantalla> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  const _NavBarItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Hacemos el ítem interactivo
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: selected ? const Color(0xFF2D7DFE) : Colors.white,
-            size: 28,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: selected ? const Color(0xFF2D7DFE) : Colors.white,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
       ),
     );
   }

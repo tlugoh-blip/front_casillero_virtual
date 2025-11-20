@@ -14,6 +14,7 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
   String _estado = 'En proceso'; // Valor por defecto
   bool _inited = false;
   String? _metodo;
+  List<int> _removedIds = []; // ids de artículos que fueron comprados y deben eliminarse del casillero
 
   @override
   void didChangeDependencies() {
@@ -23,8 +24,16 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
       if (args is Map) {
         final art = args['articulos'];
         final m = args['metodo'];
-        if (art is List<Articulo>) {
-          _articulos = List<Articulo>.from(art);
+        if (art is List) {
+          try {
+            _articulos = art.map((e) {
+              if (e is Articulo) return e;
+              if (e is Map) return Articulo.fromJson(Map<String, dynamic>.from(e));
+              return null;
+            }).whereType<Articulo>().toList();
+          } catch (_) {
+            _articulos = [];
+          }
         }
         if (m is String) _metodo = m;
 
@@ -89,6 +98,19 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
             }
           }
         }
+
+        // Capturar removed_ids si fueron enviados por la pantalla de pago
+        try {
+          final rawRemoved = args['removed_ids'] ?? args['removedIds'] ?? args['removedIdsList'];
+          if (rawRemoved is List) {
+            _removedIds = rawRemoved.where((e) => e != null).map((e) {
+              if (e is int) return e;
+              return int.tryParse('$e');
+            }).whereType<int>().toList();
+          }
+        } catch (_) {
+          _removedIds = [];
+        }
       }
       _inited = true;
     }
@@ -133,8 +155,13 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
                     errorBuilder: (_, __, ___) => const Text('Upper®', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    tooltip: 'Cerrar y volver al casillero',
+                    onPressed: () {
+                      // Ir a la pantalla principal del casillero, limpiar la pila y forzar recarga
+                      // además pasamos la lista de ids que se compraron para que el casillero los elimine localmente
+                      Navigator.pushNamedAndRemoveUntil(context, '/casillero', (route) => false, arguments: {'refresh': true, 'removed_ids': _removedIds});
+                    },
                   ),
                 ],
               ),
@@ -201,6 +228,34 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
                     // Acciones manuales eliminadas: el estado solo se muestra y se determina
                     // a partir de la información proveniente de la pantalla de pago.
                     const SizedBox(height: 12),
+                    // Si la pantalla recibió info de borrado/comprados, mostrar resumen
+                    Builder(builder: (ctx) {
+                      final args = ModalRoute.of(context)?.settings.arguments;
+                      // Priorizar mostrar los IDs removidos (caso normal cuando viene desde pago)
+                      try {
+                        if (_removedIds.isNotEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text('Se registraron ${_removedIds.length} artículos como comprados.', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                          );
+                        }
+                      } catch (_) {}
+
+                      if (args is Map && (args.containsKey('deleted_count') || args.containsKey('failed_count'))) {
+                        final int dc = (args['deleted_count'] is int) ? args['deleted_count'] : int.tryParse('${args['deleted_count'] ?? 0}') ?? 0;
+                        final int fc = (args['failed_count'] is int) ? args['failed_count'] : int.tryParse('${args['failed_count'] ?? 0}') ?? 0;
+                        final List<dynamic> fidsRaw = args['failed_ids'] ?? [];
+                        final failedIds = fidsRaw.where((e) => e != null).map((e) => e.toString()).toList();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (dc > 0) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('Se eliminaron $dc artículos del casillero.', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600))),
+                            if (fc > 0) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('No se pudieron eliminar $fc artículos: ${failedIds.join(', ')}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600))),
+                          ],
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
                   ],
                 ),
               ),

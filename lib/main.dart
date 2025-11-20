@@ -13,6 +13,7 @@ import 'pantallas/welcome_pantalla.dart';
 import 'pantallas/editar_articulo.dart';
 import 'models/articulo.dart';
 import 'pantallas/metodos_pago_pantalla.dart';
+import 'pantallas/costo_importacion_pantalla.dart';
 
 // ⭐ Nuevas pantallas
 import 'pantallas/TarjetaCreditoPantalla.dart';
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
         '/casillero': (context) => const CasilleroPantalla(),
         '/pagos': (context) => const PagosPantalla(),
         '/metodos_pago': (context) => const MetodosPagoPantalla(),
+        '/costo_import': (context) => const CostoImportacionPantalla(),
         '/estado': (context) => const EstadoPantalla(),
         '/historial': (context) => const HistorialPantalla(),
         '/anadirarticulo': (context) => const AnadirArticuloPantalla(),
@@ -66,139 +68,42 @@ class MyApp extends StatelessWidget {
 class LauncherPantalla extends StatelessWidget {
   const LauncherPantalla({Key? key}) : super(key: key);
 
+  Widget _buildButton(BuildContext context, String label, String route, {bool outlined = false}) {
+    final btn = outlined
+        ? OutlinedButton(onPressed: () => Navigator.pushNamed(context, route), child: Text(label))
+        : ElevatedButton(onPressed: () => Navigator.pushNamed(context, route), child: Text(label));
+    return SizedBox(width: double.infinity, child: btn);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final items = [
+      {'label': 'Abrir Login', 'route': '/login', 'outlined': false},
+      {'label': 'Abrir Registro', 'route': '/register', 'outlined': false},
+      {'label': 'Abrir Olvidé contraseña', 'route': '/olvidocontrasena', 'outlined': false},
+      {'label': 'Abrir Home', 'route': '/home', 'outlined': true},
+      {'label': 'Abrir Casillero', 'route': '/casillero', 'outlined': true},
+      {'label': 'Abrir Pagos', 'route': '/pagos', 'outlined': true},
+      {'label': 'Abrir Añadir Artículo', 'route': '/anadirarticulo', 'outlined': true},
+      {'label': 'Abrir Métodos de pago', 'route': '/metodos_pago', 'outlined': true},
+      {'label': 'Abrir Calculadora de Costo de Importación', 'route': '/costo_import', 'outlined': true},
+      {'label': 'Abrir Tarjeta de Crédito', 'route': '/tarjeta_credito', 'outlined': false},
+      {'label': 'Abrir Tarjeta de Débito', 'route': '/tarjeta_debito', 'outlined': false},
+      {'label': 'Abrir Estado del Pedido', 'route': '/estado', 'outlined': false},
+      {'label': 'Abrir Historial Compras', 'route': '/historial', 'outlined': false},
+    ];
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Selector de pantallas'),
-        backgroundColor: const Color(0xFF23408E),
-      ),
+      appBar: AppBar(title: const Text('Selector de pantallas'), backgroundColor: const Color(0xFF23408E)),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/login'),
-                  child: const Text('Abrir Login'),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('Abrir Registro'),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/olvidocontrasena'),
-                  child: const Text('Abrir Olvidé contraseña'),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/home'),
-                  child: const Text('Abrir Home'),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/casillero'),
-                  child: const Text('Abrir Casillero'),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/pagos'),
-                  child: const Text('Abrir Pagos'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/anadirarticulo'),
-                  child: const Text('Abrir Añadir Artículo'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/metodos_pago'),
-                  child: const Text('Abrir Métodos de pago'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ⭐ Botón Tarjeta de Crédito
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/tarjeta_credito'),
-                  child: const Text('Abrir Tarjeta de Crédito'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // ⭐ Botón Tarjeta de Débito
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/tarjeta_debito'),
-                  child: const Text('Abrir Tarjeta de Débito'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Otros botones
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/estado'),
-                  child: const Text('Abrir Estado del Pedido'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/historial'),
-                  child: const Text('Abrir Historial Compras'),
-                ),
-              ),
-            ],
-          ),
+        child: ListView.separated(
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (ctx, i) {
+            final it = items[i];
+            return _buildButton(ctx, it['label'] as String, it['route'] as String, outlined: it['outlined'] as bool);
+          },
         ),
       ),
     );
