@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:front_casillero_virtual/api_service.dart';
+import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EditarPerfilPantalla extends StatefulWidget {
   const EditarPerfilPantalla({Key? key}) : super(key: key);
@@ -42,16 +45,39 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
       if (userId != null) {
         final userData = await ApiService.getUsuario(userId);
         if (userData != null) {
+          // Preparar valores y luego hacer un único setState
+          final nombre = userData['elNombre'] ?? '';
+          final apellidos = userData['apellidos'] ?? '';
+          final cedula = userData['cedula'] ?? '';
+          final email = userData['email'] ?? '';
+          final telefono = userData['telefono'] ?? '';
+          final direccion = userData['direccionEntrega'] ?? '';
+          String imagen = (userData['imagen'] ?? '').toString().replaceAll('\n', '').replaceAll('\r', '').trim();
+
+          // Si no hay imagen en backend, intentar cargar la imagen guardada localmente
+          if (imagen.isEmpty) {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              final storedKey = 'userImage_$userId';
+              final stored = prefs.getString(storedKey);
+              if (stored != null && stored.isNotEmpty) {
+                imagen = stored;
+                print('DEBUG: Imagen cargada desde SharedPreferences clave $storedKey');
+              }
+            } catch (e) {
+              print('WARN: error al cargar imagen desde SharedPreferences: $e');
+            }
+          }
+
           setState(() {
-            // Mapeo según el JSON de ejemplo: 'elNombre', 'apellidos', 'cedula', 'email', 'telefono', 'contrasenia', 'direccionEntrega', 'imagen'
-            _nombreController.text = userData['elNombre'] ?? '';
-            _apellidosController.text = userData['apellidos'] ?? '';
-            _cedulaController.text = userData['cedula'] ?? '';
-            _emailController.text = userData['email'] ?? '';
-            _telefonoController.text = userData['telefono'] ?? '';
-            _direccionController.text = userData['direccionEntrega'] ?? '';
-            // Aquí asignamos la imagen Base64 que viene del backend
-            _base64Image = (userData['imagen'] ?? '').toString().replaceAll('\n', '').replaceAll('\r', '').trim();
+            _nombreController.text = nombre;
+            _apellidosController.text = apellidos;
+            _cedulaController.text = cedula;
+            _emailController.text = email;
+            _telefonoController.text = telefono;
+            _direccionController.text = direccion;
+            _base64Image = imagen;
+
             if ((userData['imagen'] ?? '').toString().length > 100) {
               print("IMAGEN BASE64 RECIBIDA (primeros 100 caracteres): ${userData['imagen']?.toString().substring(0, 100)}...");
             }
@@ -65,11 +91,46 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     }
   }
 
-  // El método para seleccionar imagen no está disponible en web
   Future<void> _pickImage() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Funcionalidad no disponible en web')),
-    );
+    try {
+      // En web la clase File no está disponible; ImagePicker tiene soporte limitado.
+      // Detectar web mediante Platform.operatingSystem fallará en web; mejor usar kIsWeb si quieres.
+      // Aquí asumimos que la app corre en móvil/desktop donde ImagePicker funciona.
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+
+      if (pickedFile == null) {
+        // Usuario canceló
+        return;
+      }
+
+      // Leer bytes y convertir a Base64
+      final bytes = await pickedFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      setState(() {
+        _base64Image = base64Image;
+      });
+
+      // Guardar la imagen en SharedPreferences para que persista entre aperturas de la pantalla
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final userId = await ApiService.getUserId();
+        final key = userId != null ? 'userImage_$userId' : 'userImage_unknown';
+        await prefs.setString(key, base64Image);
+        print('DEBUG: Imagen guardada localmente en SharedPreferences con clave $key');
+      } catch (e) {
+        print('WARN: No se pudo guardar la imagen en SharedPreferences: $e');
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imagen seleccionada correctamente')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al seleccionar imagen: $e')),
+      );
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -108,6 +169,18 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Perfil actualizado exitosamente. Respuesta: $respPreview')),
         );
+
+        // Guardar localmente la imagen (por si el backend no la persiste)
+        if (_base64Image.isNotEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final key = userId != null ? 'userImage_$userId' : 'userImage_unknown';
+            await prefs.setString(key, _base64Image);
+            print('DEBUG: Imagen guardada localmente tras update en SharedPreferences con clave $key');
+          } catch (e) {
+            print('WARN: No se pudo guardar la imagen tras update: $e');
+          }
+        }
 
         // Refrescar los datos desde el servidor para verificar si la BD cambió
         await _loadUserData();
@@ -181,18 +254,24 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                       height: 112,
                       color: Colors.white,
                       child: _base64Image.isNotEmpty
-                          ? Image.network(
-                              'data:image/jpeg;base64,$_base64Image',
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                print('⚠️ Error al mostrar imagen: $error');
+                          ? Builder(builder: (context) {
+                              try {
+                                final bytes = base64Decode(_base64Image);
+                                return Image.memory(
+                                  bytes,
+                                  fit: BoxFit.cover,
+                                  width: 112,
+                                  height: 112,
+                                );
+                              } catch (e) {
+                                print('⚠️ Error al mostrar imagen Base64: $e');
                                 return const Icon(
                                   Icons.person,
                                   size: 56,
                                   color: Colors.grey,
                                 );
-                              },
-                            )
+                              }
+                            })
                           : const Icon(
                               Icons.person,
                               size: 56,
