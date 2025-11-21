@@ -216,19 +216,6 @@ class _PagosPantallaState extends State<PagosPantalla> {
 
                     // Reemplazo de RadioListTile por tiles con icono/imagen
                     _buildPaymentTile(
-                      id: 'Efectivo',
-                      title: 'Efectivo',
-                      icon: Icons.attach_money,
-                      subtitle: 'Paga en efectivo al recibir',
-                    ),
-                    _buildPaymentTile(
-                      id: 'PSE',
-                      title: 'PSE',
-                      icon: Icons.account_balance_wallet,
-                      assetImage: 'assets/imagenes/pse.jpg',
-                      subtitle: 'Pago por transferencia bancaria PSE',
-                    ),
-                    _buildPaymentTile(
                       id: 'Tarjeta Débito',
                       title: 'Tarjeta Débito',
                       icon: Icons.payment,
@@ -342,8 +329,6 @@ class _PagosPantallaState extends State<PagosPantalla> {
                                   final l = label.toLowerCase();
                                   if (l.contains('credito')) return 'tarjeta';
                                   if (l.contains('debito') || l.contains('débito')) return 'debito';
-                                  if (l.contains('pse')) return 'pse';
-                                  if (l.contains('efectivo')) return 'efectivo';
                                   return label;
                                 }
 

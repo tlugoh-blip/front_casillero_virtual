@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
+import '../api_service.dart';
+import 'dart:convert';
 
 class EstadoPantalla extends StatefulWidget {
   const EstadoPantalla({Key? key}) : super(key: key);
@@ -11,6 +13,8 @@ class EstadoPantalla extends StatefulWidget {
 
 class _EstadoPantallaState extends State<EstadoPantalla> {
   List<Articulo> _articulos = [];
+  String? _nombreTitular; // nombre que aparece en la tarjeta
+  int? _montoCop; // monto en COP
   String _estado = 'En proceso'; // Valor por defecto
   bool _inited = false;
   String? _metodo;
@@ -22,20 +26,29 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
     if (!_inited) {
       final args = ModalRoute.of(context)!.settings.arguments;
       if (args is Map) {
-        final art = args['articulos'];
-        final m = args['metodo'];
-        if (art is List) {
-          try {
-            _articulos = art.map((e) {
-              if (e is Articulo) return e;
-              if (e is Map) return Articulo.fromJson(Map<String, dynamic>.from(e));
-              return null;
-            }).whereType<Articulo>().toList();
-          } catch (_) {
-            _articulos = [];
-          }
+        final dynamic artRaw = args['articulos'] ?? args['articulosComprados'] ?? args['items'] ?? args['articuloList'] ?? args['articulos_ids'] ?? args['articulosIds'];
+        // Resolver artículos de forma asíncrona si vienen en formatos variados
+        if (artRaw != null) {
+          _resolveArticulosFromArg(artRaw);
         }
+        final m = args['metodo'];
         if (m is String) _metodo = m;
+
+        // EXTRAER NOMBRE TITULAR (varias claves posibles)
+        try {
+          final candidateName = (args['nombre'] ?? args['nombreTitular'] ?? args['cardName'] ?? args['nombreTarjeta'] ?? args['titular'] ?? args['holder'])?.toString();
+          if (candidateName != null && candidateName.isNotEmpty) _nombreTitular = candidateName;
+        } catch (_) {}
+
+        // EXTRAER MONTO (varias claves posibles)
+        try {
+          final rawMonto = args['monto'] ?? args['montoCop'] ?? args['amount'] ?? (args['respuesta'] is Map ? args['respuesta']['monto'] : null);
+          if (rawMonto != null) {
+            if (rawMonto is int) _montoCop = rawMonto;
+            else if (rawMonto is double) _montoCop = rawMonto.round();
+            else if (rawMonto is String) _montoCop = int.tryParse(rawMonto) ?? _montoCop;
+          }
+        } catch (_) {}
 
         // Determinar si el pago fue confirmado por la pantalla de tarjeta
         // Soportar varias claves posibles que el resto de la app pudiera enviar
@@ -65,6 +78,20 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
         if (pagoResult is Map) {
           try {
             print('[EstadoPantalla] pagoResult encontrado: $pagoResult');
+          } catch (_) {}
+
+          // Extraer nombre y monto desde pagoResult si no fueron obtenidos arriba
+          try {
+            final nameFromResult = (pagoResult['nombre'] ?? pagoResult['elNombre'] ?? pagoResult['cardName'] ?? pagoResult['titular'] ?? pagoResult['holder'])?.toString();
+            if ((nameFromResult ?? '').isNotEmpty) _nombreTitular = nameFromResult;
+          } catch (_) {}
+          try {
+            final raw = pagoResult['monto'] ?? pagoResult['amount'] ?? pagoResult['valor'] ?? pagoResult['total'];
+            if (raw != null) {
+              if (raw is int) _montoCop = raw;
+              else if (raw is double) _montoCop = raw.round();
+              else if (raw is String) _montoCop = int.tryParse(raw) ?? _montoCop;
+            }
           } catch (_) {}
 
           final statusRaw = (pagoResult['status'] ?? pagoResult['estado'] ?? pagoResult['estadoPago'])?.toString();
@@ -185,6 +212,14 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('Método de pago: ${_metodo ?? '-'}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    if (_nombreTitular != null) ...[
+                      const SizedBox(height: 6),
+                      Text('Nombre en la tarjeta: ${_nombreTitular!}', style: const TextStyle(fontSize: 14)),
+                    ],
+                    if (_montoCop != null) ...[
+                      const SizedBox(height: 6),
+                      Text('Monto: ${CurrencyConverter.formatCop(_montoCop!)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ],
                     const SizedBox(height: 12),
                     const Text('Artículos comprados del casillero:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
@@ -264,5 +299,72 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
         ),
       ),
     );
+  }
+
+  // Normaliza diferentes formatos posibles para 'articulos' y actualiza _articulos.
+  Future<void> _resolveArticulosFromArg(dynamic artRaw) async {
+    try {
+      List<dynamic> normalized = [];
+
+      if (artRaw == null) normalized = [];
+      else if (artRaw is String) {
+        // Intentar parsear JSON
+        try {
+          final decoded = jsonDecode(artRaw);
+          if (decoded is List) normalized = decoded;
+          else normalized = [decoded];
+        } catch (_) {
+          normalized = [artRaw];
+        }
+      } else if (artRaw is List) normalized = artRaw;
+      else normalized = [artRaw];
+
+      // Si todos los elementos son ids (int o string numérico), resolver desde el casillero
+      final bool allIds = normalized.isNotEmpty && normalized.every((e) => e is int || (e is String && int.tryParse(e) != null));
+      List<Articulo> resolved = [];
+
+      if (allIds) {
+        try {
+          final userId = await ApiService.getUserId();
+          if (userId != null) {
+            final casilleroId = await ApiService.getCasilleroId(userId);
+            if (casilleroId != null) {
+              final all = await ApiService.getArticulosPorCasillero(casilleroId);
+              final ids = normalized.map((e) => e is int ? e : int.parse(e.toString())).toSet();
+              resolved = all.where((a) => a.id != null && ids.contains(a.id)).toList();
+            }
+          }
+        } catch (e) {
+          print('[EstadoPantalla] Error resolviendo artículos por id: $e');
+        }
+      } else {
+        // Normalizar elementos: Map -> Articulo, Articulo -> Articulo, otros -> crear placeholder
+        for (final e in normalized) {
+          if (e is Articulo) resolved.add(e);
+          else if (e is Map) {
+            try {
+              resolved.add(Articulo.fromJson(Map<String, dynamic>.from(e)));
+            } catch (_) {}
+          } else if (e is String) {
+            // intentar parsear JSON string
+            try {
+              final d = jsonDecode(e);
+              if (d is Map) resolved.add(Articulo.fromJson(Map<String, dynamic>.from(d)));
+            } catch (_) {
+              // No es JSON de Articulo; crear Articulo mínimo
+              resolved.add(Articulo(id: null, nombre: e, talla: '', categoria: '', color: '', valorUnitario: 0, url: '', peso: 0.0));
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _articulos = resolved;
+        });
+      }
+    } catch (e) {
+      print('[EstadoPantalla] Error normalizando articulos: $e');
+    }
   }
 }

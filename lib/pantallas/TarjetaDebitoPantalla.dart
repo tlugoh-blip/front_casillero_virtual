@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/articulo.dart';
 
 // Formatter que inserta automáticamente '/' después de los dos primeros dígitos
@@ -178,13 +180,28 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
                           final expiry = _expiryController.text;
                           final cvc = _cvcController.text;
                           final nombre = _nameController.text.trim();
+                          // Obtener casilleroId del usuario antes de procesar pago
+                          final userId = await ApiService.getUserId();
+                          if (userId == null) throw Exception('Usuario no identificado');
+                          final casilleroId = await ApiService.getCasilleroId(userId);
+                          if (casilleroId == null) throw Exception('No se encontró casillero para el usuario');
+
                           final result = await ApiService.procesarPago(
+                            casilleroId: casilleroId,
                             metodo: _metodoFromArgs,
-                            monto: _monto,
+                            monto: _monto.round(),
                             numeroTarjeta: numero,
                             nombre: nombre,
                             fecha: expiry,
                             cvv: cvc,
+                            articuloIds: _articulosCompradas.map((e) {
+                              if (e is Articulo) return e.id;
+                              if (e is Map) {
+                                final dynamic idRaw = e['id'] ?? e['id_articulo'] ?? e['idArticulo'];
+                                return idRaw is int ? idRaw : int.tryParse('$idRaw');
+                              }
+                              return null;
+                            }).whereType<int>().toList(),
                             persistir: true,
                           );
                           if (result['nombre'] == null || (result['nombre'] is String && (result['nombre'] as String).trim().isEmpty)) {
@@ -200,30 +217,60 @@ class _TarjetaDebitoPantallaState extends State<TarjetaDebitoPantalla> {
                             SnackBar(content: Text('$status: $mensaje')),
                           );
                           if (context.mounted) {
-                            // No borramos desde el front: pasamos los IDs en 'removed_ids' para que
-                            // Casillero los procese al volver.
+                            // Solo eliminar del casillero si el backend aprobó el pago
+                            final String statusRaw = (result['status'] ?? '').toString();
+                            final String statusLower = statusRaw.toLowerCase();
+                            final bool aprobado = statusLower.contains('aprob') || statusLower.contains('approved') || statusLower == 'true';
+
                             final List<int> removedIds = [];
-                            try {
-                              for (final a in _articulosCompradas) {
-                                if (a == null) continue;
-                                if (a is Articulo) {
-                                  if (a.id != null) removedIds.add(a.id!);
-                                } else if (a is Map) {
-                                  final dynamic idRaw = a['id'] ?? a['id_articulo'] ?? a['idArticulo'];
-                                  final int? aid = idRaw is int ? idRaw : int.tryParse('$idRaw');
-                                  if (aid != null) removedIds.add(aid);
+                            final List<int> failedIds = [];
+
+                            if (aprobado) {
+                              try {
+                                for (final a in _articulosCompradas) {
+                                  if (a == null) continue;
+                                  int? aid;
+                                  if (a is Articulo) aid = a.id;
+                                  else if (a is Map) {
+                                    final dynamic idRaw = a['id'] ?? a['id_articulo'] ?? a['idArticulo'];
+                                    aid = idRaw is int ? idRaw : int.tryParse('$idRaw');
+                                  }
+                                  if (aid != null) {
+                                    try {
+                                      final userId = await ApiService.getUserId();
+                                      if (userId != null) {
+                                        final casilleroId = await ApiService.getCasilleroId(userId);
+                                        if (casilleroId != null) {
+                                          final resp = await ApiService.deleteArticuloFromCasillero(casilleroId, aid);
+                                          if (resp.statusCode == 200 || resp.statusCode == 204) removedIds.add(aid);
+                                          else failedIds.add(aid);
+                                        }
+                                      }
+                                    } catch (e) {
+                                      try { print('[TarjetaDebitoPantalla] error deleting articulo $aid: $e'); } catch (_) {}
+                                      failedIds.add(aid);
+                                    }
+                                  }
                                 }
+                              } catch (e) {
+                                try { print('[TarjetaDebitoPantalla] error removing articulos: $e'); } catch (_) {}
                               }
-                            } catch (_) {}
+                            }
 
                             try { print('[TarjetaDebitoPantalla] removedIds: $removedIds'); } catch (_) {}
 
                             final argsNav = {
                               'respuesta': result,
                               'articulos': _articulosCompradas,
-                              'paymentConfirmed': true,
-                              'removed_ids': removedIds,
+                              'paymentConfirmed': aprobado,
                             };
+                            if (aprobado) {
+                              argsNav['removed_ids'] = removedIds;
+                              argsNav['failed_ids'] = failedIds;
+                              argsNav['deleted_count'] = removedIds.length;
+                              argsNav['failed_count'] = failedIds.length;
+                            }
+
                             Navigator.pushNamed(context, '/estado', arguments: argsNav);
                           }
                         } catch (e) {

@@ -255,28 +255,39 @@ class ApiService {
   }
 
   // =======================================================
-  // PAGOS
-  // =======================================================
+// PAGOS
+// =======================================================
   static Future<Map<String, dynamic>> procesarPago({
+    required int casilleroId, // <--- obligatorio ahora
     required String metodo,
-    required double monto,
+    required int monto, // ahora tipo int/Long
     String? numeroTarjeta,
     String? nombre,
     String? fecha,
     String? cvv,
+    required List<int> articuloIds, // <--- CAMBIO CLAVE: hacerlo requerido
     bool persistir = true,
   }) async {
-    final uri = Uri.parse('$baseUrl/pagos/procesar')
+    // La ruta correcta del backend es POST /pagos/procesar/{casilleroId}
+    final uri = Uri.parse('$baseUrl/pagos/procesar/$casilleroId')
         .replace(queryParameters: persistir ? {'persistir': 'true'} : null);
 
-    final body = {
-      'metodoPago': metodo,
-      'nombre': nombre,
+    final Map<String, dynamic> body = {
+      // Usar los nombres de campo EXACTOS esperados por el PagoRequestDTO de Java
+      'metodoPago': metodo, // Coincide con @JsonProperty("metodoPago")
       'monto': monto,
       'numeroTarjeta': numeroTarjeta,
+      'elNombre': nombre, // Coincide con @JsonProperty("elNombre")
       'fecha': fecha,
       'cvv': cvv,
+      'articuloIds': articuloIds, // <--- CAMBIO CLAVE: Enviar IDs de artículo
     };
+
+    // Limpiar el body de valores nulos (el servidor lo maneja, pero es buena práctica)
+    body.removeWhere((key, value) => value == null);
+
+    print('DEBUG: POST $uri');
+    print('DEBUG: Request body: ${jsonEncode(body)}');
 
     final response = await http.post(
       uri,
@@ -284,39 +295,49 @@ class ApiService {
       body: jsonEncode(body),
     );
 
-    final decoded = jsonDecode(response.body);
+    print('DEBUG: Response status: ${response.statusCode}');
+    print('DEBUG: Response body: ${response.body}');
 
+    final decoded = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (decoded is Map<String, dynamic>) return decoded;
-      return {'data': decoded};
-    } else {
-      throw Exception('Error al procesar pago: ${response.statusCode} ${response.body}');
+      return {'data': decoded}; // Por si el body es un valor simple
     }
+
+    throw Exception('Error al procesar pago: ${response.statusCode}. Mensaje: ${response.body}');
   }
 
+  // =======================================================
+  // LISTAR Y CONSULTAR PAGOS
+  // =======================================================
   static Future<List<Map<String, dynamic>>> getPagos() async {
     final url = Uri.parse('$baseUrl/pagos');
-
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-
       if (decoded is List) {
-        return List<Map<String, dynamic>>.from(
-            decoded.map((e) => e as Map<String, dynamic>)
-        );
+        // La respuesta ahora incluye 'articulosPagados' dentro de cada mapa
+        return List<Map<String, dynamic>>.from(decoded.map((e) => e as Map<String, dynamic>));
       }
-
-      if (decoded is Map && decoded['data'] is List) {
-        return List<Map<String, dynamic>>.from(
-            decoded['data'].map((e) => e as Map<String, dynamic>)
-        );
-      }
-
-      throw Exception('Formato inesperado de respuesta');
-    } else {
-      throw Exception('Error al obtener pagos');
+      throw Exception('Formato inesperado de respuesta de /pagos. Esperado: Lista');
     }
+    throw Exception('Error al obtener pagos: ${response.statusCode} ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>?> getPagoById(int id) async {
+    final url = Uri.parse('$baseUrl/pagos/$id');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      try {
+        // La respuesta ahora incluye 'articulosPagados'
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        print('Error decodificando el pago por ID: $e');
+        return null;
+      }
+    }
+    return null;
   }
 }
+

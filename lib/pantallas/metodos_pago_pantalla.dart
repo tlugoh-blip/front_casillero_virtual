@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
@@ -14,15 +15,16 @@ class MetodosPagoPantalla extends StatefulWidget {
 }
 
 class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
+  // Estado
   String? _seleccion;
   bool _cargando = false;
+  bool _inicializado = false;
 
+  // Constante
   static const Color _azulFondo = Color(0xFF002B68);
 
-  // Artículos y estimado
+  // Datos de Artículos y Costos
   List<Articulo> _articulos = [];
-  bool _inicializado = false;
-  bool _autoNavDone = false;
   double _pesoTotalLb = 0.0;
   int _valorTotalCop = 0;
   double _costoEnvioUsd = 0.0;
@@ -30,7 +32,8 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
   double _impuestosUsd = 0.0;
   double _costoImportUsd = 0.0;
   int get _costoImportCop => CurrencyConverter.usdToCop(_costoImportUsd);
-  int get _totalFinalCop => _valorTotalCop + _costoImportCop;
+  // El monto enviado al backend debe ser el total final
+  int get _montoFinalAEnviar => _valorTotalCop + _costoImportCop;
 
   // Reutilizamos la misma lógica de estimación de peso que en Casillero
   double _pesoEstimadoPorArticulo(Articulo a) {
@@ -50,8 +53,9 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
     double pesoTotal = 0.0;
     int valorTotalCop = 0;
     for (final a in articulos) {
-      pesoTotal += _pesoEstimadoPorArticulo(a);
+      // Importante: Asegurar que valorUnitario sea int/Long, como espera el backend
       valorTotalCop += a.valorUnitario;
+      pesoTotal += _pesoEstimadoPorArticulo(a);
     }
 
     // Misma fórmula que en Casillero
@@ -67,6 +71,8 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
 
     setState(() {
       _articulos = articulos;
+      // Usar int.round() para Longs en el backend si el cálculo final lo requiere,
+      // pero aquí mantenemos precisión. El monto a enviar es int.
       _pesoTotalLb = double.parse(pesoTotal.toStringAsFixed(2));
       _valorTotalCop = valorTotalCop;
       _costoEnvioUsd = double.parse(envioUsd.toStringAsFixed(2));
@@ -76,62 +82,103 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
     });
   }
 
+  // ==========================================
+  // LÓGICA CLAVE: PROCESAR PAGO
+  // ==========================================
   Future<void> _procesarPago() async {
-    if (_seleccion == null) return;
+    // 🚨 Problema lógico: Esta pantalla ya no debería procesar el pago directamente
+    // para tarjetas. Debería navegar a la pantalla de tarjeta donde se obtienen
+    // los datos (`numeroTarjeta`, `cvv`, etc.) y *luego* se llama a `ApiService.procesarPago`.
+    // Sin embargo, si decides usar esta pantalla como fallback o para métodos como PSE,
+    // esta es la lógica de corrección:
+
+    if (_seleccion == null || _articulos.isEmpty) return;
+
+    // Solo se debe llamar a ApiService.procesarPago si no es tarjeta,
+    // o si los datos de la tarjeta ya se ingresaron en esta pantalla.
+    if (_seleccion == 'credit' || _seleccion == 'debit') {
+      // Si el método seleccionado es tarjeta, forzamos la navegación
+      // al formulario para que el usuario ingrese los datos faltantes.
+      // Luego, ese formulario se encargará de llamar a la API.
+      _navegarATarjeta(forceSelection: _seleccion);
+      return;
+    }
 
     setState(() => _cargando = true);
 
-    final metodo = _seleccion!;
-    final descripcion = metodo == 'credit'
-        ? 'Tarjeta de crédito'
-        : metodo == 'debit'
-        ? 'Tarjeta de débito'
-        : 'PSE';
-
     try {
-      final url = Uri.parse("http://localhost:8620/pagos/procesar");
+      final userId = await ApiService.getUserId();
+      if (userId == null) throw Exception('Usuario no identificado. Por favor, reinicie sesión.');
+      final casilleroId = await ApiService.getCasilleroId(userId);
+      if (casilleroId == null) throw Exception('No se encontró casillero asociado a su usuario.');
 
-      final respuesta = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "metodo": metodo,
-          // Enviamos el monto final en COP (prendas + costo importación)
-          "monto": _totalFinalCop,
-          "descripcion": descripcion,
-        }),
+      // 🚨 CORRECCIÓN CLAVE: Obtener y validar IDs de artículos
+      final articuloIds = _articulos.where((a) => a.id != null).map((a) => a.id!).toList();
+      if (articuloIds.isEmpty) throw Exception('No hay IDs de artículos válidos para enviar al pago.');
+
+      // 🚨 CORRECCIÓN CLAVE: Llamada a la API de Pago
+      final data = await ApiService.procesarPago(
+        casilleroId: casilleroId,
+        metodo: _seleccion!, // ej: 'PSE'
+        monto: _montoFinalAEnviar, // Monto total en COP (Long en backend)
+        numeroTarjeta: null, // No aplica para PSE
+        nombre: null,
+        fecha: null,
+        cvv: null,
+        articuloIds: articuloIds, // Pasamos la lista de IDs (List<int>)
+        persistir: true,
       );
 
       setState(() => _cargando = false);
 
-      if (respuesta.statusCode == 200) {
-        final data = jsonDecode(respuesta.body);
-
+      // Navegación al estado
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Estado: ${data['status']} - ${data['mensaje']}"),
-          ),
+          SnackBar(content: Text("Estado: ${data['status']} - ${data['mensaje']}")),
         );
 
-        // Después de procesar, navegar a pantalla de estado como en pagos_pantalla
-        Navigator.pushNamed(context, '/estado', arguments: {
-          'metodo': metodo,
-          'monto': _totalFinalCop,
+        Navigator.pushReplacementNamed(context, '/estado', arguments: {
+          'metodo': _seleccion!,
+          'monto': _montoFinalAEnviar,
           'respuesta': data,
+          // Enviamos los Articulos como objetos Articulo o como Map para consistencia
+          'articulos': _articulos,
         });
-
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${respuesta.body}")),
-        );
       }
     } catch (e) {
       setState(() => _cargando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error conectando al servidor: $e")),
-      );
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error procesando pago: $e')));
     }
   }
+
+  // ==========================================
+  // LÓGICA DE NAVEGACIÓN A PANTALLA DE TARJETA
+  // ==========================================
+  void _navegarATarjeta({String? forceSelection}) {
+    final selection = forceSelection ?? _seleccion;
+
+    if (selection == 'credit' || selection == 'debit') {
+      final route = selection == 'credit' ? '/tarjeta_credito' : '/tarjeta_debito';
+      final args = {
+        'metodo': selection,
+        'monto': _montoFinalAEnviar,
+        'prendas_cop': _valorTotalCop,
+        'costo_import_cop': _costoImportCop,
+        'articulos': _articulos, // Pasar la lista de objetos Articulo
+      };
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!context.mounted) return;
+        try {
+          // Usamos push para volver a esta pantalla si el usuario cancela la tarjeta
+          await Navigator.pushNamed(context, route, arguments: args);
+        } catch (e) {
+          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir el formulario de pago: $e')));
+        }
+      });
+    }
+  }
+
 
   Widget _buildPaymentTile({
     required String id,
@@ -150,35 +197,7 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
           setState(() => _seleccion = id);
           // Si es tarjeta crédito/débito, ir directamente a la pantalla de tarjeta
           if (id == 'credit' || id == 'debit') {
-            final route = id == 'credit' ? '/tarjeta_credito' : '/tarjeta_debito';
-            final args = {
-              'metodo': id == 'credit' ? 'tarjeta' : 'debito',
-              'monto': _totalFinalCop,
-              'prendas_cop': _valorTotalCop,
-              'costo_import_cop': _costoImportCop,
-              // pasar articulos como lista de Maps para que las pantallas de tarjeta los reciban
-              'articulos': _articulos,
-            };
-            try {
-              print('[MetodosPagoPantalla] Intentando navegar a $route con args: $args');
-            } catch (_) {}
-            // Mostrar snackbar breve para confirmar que se detectó el tap
-            try {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Abriendo $title...'), duration: const Duration(milliseconds: 700)));
-            } catch (_) {}
-            // Navegar en el siguiente frame para evitar problemas si el onTap se dispara durante build
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              if (!context.mounted) return;
-              try {
-                await Navigator.pushNamed(context, route, arguments: args);
-              } catch (e) {
-                try {
-                  print('[MetodosPagoPantalla] Error navegando a $route: $e');
-                } catch (_) {}
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir $title')));
-              }
-            });
-            return;
+            _navegarATarjeta(forceSelection: id); // 🚨 Se llama la función unificada de navegación
           }
         },
         child: AnimatedContainer(
@@ -203,27 +222,27 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
           ),
           child: Row(
             children: [
-              // Ajuste: usar el mismo ancho que en `pagos_pantalla` (56)
+              // ... (Contenido del Tile sin cambios)
               SizedBox(
                 width: 56,
                 height: 56,
                 child: assetImage != null
                     ? Image.asset(
-                        assetImage,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(
-                          icon ?? Icons.payment,
-                          size: 28,
-                          color: selected ? _azulFondo : Colors.black87,
-                        ),
-                      )
+                  assetImage,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Icon(
+                    icon ?? Icons.payment,
+                    size: 28,
+                    color: selected ? _azulFondo : Colors.black87,
+                  ),
+                )
                     : Icon(
-                        icon ?? Icons.payment,
-                        size: 28,
-                        color: selected ? _azulFondo : Colors.black87,
-                      ),
+                  icon ?? Icons.payment,
+                  size: 28,
+                  color: selected ? _azulFondo : Colors.black87,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -250,7 +269,6 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
                   ],
                 ),
               ),
-              // Reemplazo del Radio (deprecado) por un icono indicador
               SizedBox(
                 width: 36,
                 child: Icon(
@@ -266,20 +284,26 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
     );
   }
 
+  // ==========================================
+  // DIÁLOGO DE CONFIRMACIÓN (REFACTORIZADO)
+  // ==========================================
   void _confirmarPago() {
     if (_seleccion == null) return;
 
-    final metodo = _seleccion == 'credit'
-        ? 'Tarjeta de crédito'
-        : _seleccion == 'debit'
-        ? 'Tarjeta de débito'
-        : 'PSE';
+    // Si la selección es Tarjeta, redirigir al formulario, no procesar aquí.
+    if (_seleccion == 'credit' || _seleccion == 'debit') {
+      _navegarATarjeta();
+      return;
+    }
+
+    // Lógica para otros métodos (ej. PSE, que requiere procesar directamente)
+    final metodoNombre = _seleccion == 'pse' ? 'PSE' : 'este método';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar pago'),
-        content: Text('¿Deseas pagar con $metodo?'),
+        content: Text('¿Deseas pagar con $metodoNombre?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -288,19 +312,8 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              // Si la selección es tarjeta de crédito, redirigir a la pantalla de tarjeta
-              if (_seleccion == 'credit') {
-                final args = {'metodo': metodo, 'monto': _totalFinalCop, 'prendas_cop': _valorTotalCop, 'costo_import_cop': _costoImportCop, 'articulos': _articulos};
-                try { print('[MetodosPagoPantalla] Confirm dialog -> navegar a /tarjeta_credito args: $args'); } catch (_) {}
-                if (context.mounted) Navigator.pushNamed(context, '/tarjeta_credito', arguments: args);
-              } else if (_seleccion == 'debit') {
-                final args = {'metodo': metodo, 'monto': _totalFinalCop, 'prendas_cop': _valorTotalCop, 'costo_import_cop': _costoImportCop, 'articulos': _articulos};
-                try { print('[MetodosPagoPantalla] Confirm dialog -> navegar a /tarjeta_debito args: $args'); } catch (_) {}
-                if (context.mounted) Navigator.pushNamed(context, '/tarjeta_debito', arguments: args);
-              } else {
-                // Para PSE procesar directamente
-                _procesarPago();
-              }
+              // Llamamos a la función que intentará procesar el pago directamente (ej. PSE)
+              _procesarPago();
             },
             child: const Text('Aceptar'),
           ),
@@ -311,12 +324,12 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
 
   @override
   Widget build(BuildContext context) {
-    // _inicializado y parsing de argumentos ahora se hacen en didChangeDependencies
     return Scaffold(
       backgroundColor: _azulFondo,
       body: SafeArea(
         child: Column(
           children: [
+            // ... (AppBar y diseño superior sin cambios)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Row(
@@ -354,188 +367,192 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
                 ),
                 padding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Medios de pago',
-                      textAlign: TextAlign.center,
-                      style:
-                      TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Selecciona un método de pago',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.black54),
-                    ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Medios de pago',
+                        textAlign: TextAlign.center,
+                        style:
+                        TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Selecciona un método de pago',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.black54),
+                      ),
 
-                    const SizedBox(height: 18),
+                      const SizedBox(height: 18),
 
-                    // RESUMEN DE TOTALES
-                    Card(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 3,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Prendas', style: TextStyle(fontWeight: FontWeight.w600)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text('${_articulos.length} items', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                    Text(CurrencyConverter.formatCop(_valorTotalCop)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Peso total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Text('$_pesoTotalLb lb', style: const TextStyle(fontSize: 12)),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
+                      // RESUMEN DE TOTALES
+                      // ... (Widget de resumen de totales sin cambios)
+                      Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Prendas', style: TextStyle(fontWeight: FontWeight.w600)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('${_articulos.length} items', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                      Text(CurrencyConverter.formatCop(_valorTotalCop)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Peso total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Text('$_pesoTotalLb lb', style: const TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
 
-                            // Desglose del costo de importación
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Envío (estimado)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(CurrencyConverter.formatUsd(_costoEnvioUsd), style: const TextStyle(fontSize: 12)),
-                                    Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoEnvioUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Seguro (1%)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(CurrencyConverter.formatUsd(_costoSeguroUsd), style: const TextStyle(fontSize: 12)),
-                                    Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoSeguroUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Impuestos (5%)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(CurrencyConverter.formatUsd(_impuestosUsd), style: const TextStyle(fontSize: 12)),
-                                    Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_impuestosUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  ],
-                                ),
-                              ],
-                            ),
+                              // Desglose del costo de importación
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Envío (estimado)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(CurrencyConverter.formatUsd(_costoEnvioUsd), style: const TextStyle(fontSize: 12)),
+                                      Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoEnvioUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Seguro (1%)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(CurrencyConverter.formatUsd(_costoSeguroUsd), style: const TextStyle(fontSize: 12)),
+                                      Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_costoSeguroUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Impuestos (5%)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(CurrencyConverter.formatUsd(_impuestosUsd), style: const TextStyle(fontSize: 12)),
+                                      Text(CurrencyConverter.formatCop(CurrencyConverter.usdToCop(_impuestosUsd)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ],
+                              ),
 
-                            const Divider(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Costo importación (estimado)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(CurrencyConverter.formatUsd(_costoImportUsd), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                    Text(CurrencyConverter.formatCop(_costoImportCop), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  ],
-                                ),
-                              ],
-                            ),
+                              const Divider(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Costo importación (estimado)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(CurrencyConverter.formatUsd(_costoImportUsd), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                      Text(CurrencyConverter.formatCop(_costoImportCop), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ],
+                              ),
 
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Total a pagar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(CurrencyConverter.formatCop(_totalFinalCop), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text(CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(_totalFinalCop)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total a pagar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(CurrencyConverter.formatCop(_montoFinalAEnviar), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text(CurrencyConverter.formatUsd(CurrencyConverter.copToUsd(_montoFinalAEnviar)), style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 12),
 
-                    _buildPaymentTile(
-                      id: 'credit',
-                      title: 'Tarjeta de crédito',
-                      icon: Icons.credit_card,
-                      assetImage: 'assets/imagenes/tarjetacredito.jpg',
-                      subtitle: 'Paga con Visa, MasterCard, Amex',
-                    ),
-                    _buildPaymentTile(
-                      id: 'debit',
-                      title: 'Tarjeta de débito',
-                      icon: Icons.payment,
-                      assetImage: 'assets/imagenes/tarjetadebito.webp',
-                      subtitle: 'Debito bancario',
-                    ),
-                    _buildPaymentTile(
-                      id: 'pse',
-                      title: 'PSE',
-                      icon: Icons.account_balance_wallet,
-                      assetImage: 'assets/imagenes/pse.jpg',
-                      subtitle: 'Pago por transferencia bancaria PSE',
-                    ),
+                      const SizedBox(height: 12),
 
-                    const Spacer(),
-
-                    SizedBox(
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _articulos.isEmpty || _seleccion == null || _cargando ? null : _confirmarPago,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0B66FF),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 6,
-                        ),
-                        child: _cargando
-                            ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                            : Text(
-                                _articulos.isEmpty
-                                    ? 'Sin artículos'
-                                    : 'Pagar — ${CurrencyConverter.formatCop(_totalFinalCop)}',
-                           style: const TextStyle(
-                             fontSize: 18,
-                             fontWeight: FontWeight.bold,
-                             color: Colors.white,
-                           ),
-                         ),
+                      _buildPaymentTile(
+                        id: 'credit',
+                        title: 'Tarjeta de crédito',
+                        icon: Icons.credit_card,
+                        assetImage: 'assets/imagenes/tarjetacredito.jpg',
+                        subtitle: 'Paga con Visa, MasterCard, Amex',
                       ),
-                    ),
+                      _buildPaymentTile(
+                        id: 'debit',
+                        title: 'Tarjeta de débito',
+                        icon: Icons.payment,
+                        assetImage: 'assets/imagenes/tarjetadebito.webp',
+                        subtitle: 'Debito bancario',
+                      ),
+                      // Añadir de nuevo PSE si es un método de pago directo
+                      _buildPaymentTile(
+                        id: 'pse',
+                        title: 'PSE',
+                        icon: Icons.account_balance,
+                        subtitle: 'Débito bancario en línea',
+                      ),
 
-                    const SizedBox(height: 12),
-                  ],
+
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _articulos.isEmpty || _seleccion == null || _cargando ? null : _confirmarPago, // Usar _confirmarPago
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0B66FF),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            elevation: 6,
+                          ),
+                          child: _cargando
+                              ? const CircularProgressIndicator(
+                            color: Colors.white,
+                          )
+                              : Text(
+                            _articulos.isEmpty
+                                ? 'Sin artículos'
+                                : 'Pagar — ${CurrencyConverter.formatCop(_montoFinalAEnviar)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -547,6 +564,7 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
 
   // Si no se recibieron artículos por argumentos, intentar obtenerlos del backend
   Future<void> _fetchArticulosFromApi() async {
+    // ... (Lógica de fetch sin cambios, excepto por el `setState` interno)
     try {
       final userId = await ApiService.getUserId();
       if (userId == null) return;
@@ -554,7 +572,8 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
       if (casilleroId == null) return;
       final articulos = await ApiService.getArticulosPorCasillero(casilleroId);
       if (articulos.isNotEmpty) {
-        _calcularEstimadoDesdeArticulos(articulos);
+        // Envolver en setState
+        if (mounted) _calcularEstimadoDesdeArticulos(articulos);
       }
     } catch (e) {
       try {
@@ -563,28 +582,32 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
     }
   }
 
+  // ==========================================
+  // LÓGICA CLAVE: didChangeDependencies (LIMPIEZA Y ORDEN)
+  // ==========================================
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_inicializado) {
       final args = ModalRoute.of(context)?.settings.arguments;
       List<Articulo> articulosRecibidos = [];
+      String? metodoPreseleccionado;
 
       try {
         if (args is List<Articulo>) {
           articulosRecibidos = args;
         } else if (args is List) {
+          // Mapeo más seguro para evitar TypeErrors si vienen como List<Map>
           articulosRecibidos = args.map((e) {
             if (e is Articulo) return e;
             if (e is Map) return Articulo.fromJson(Map<String, dynamic>.from(e));
             return null;
           }).whereType<Articulo>().toList();
         } else if (args is Map) {
-          // Primero, si vienen valores pre-calculados, úsalos
-          final maybeArt = args['articulos'] ?? args['articulosList'] ?? args['items'];
-          if (maybeArt is List<Articulo>) {
-            articulosRecibidos = maybeArt;
-          } else if (maybeArt is List) {
+          final Map<String, dynamic> argsMap = Map<String, dynamic>.from(args);
+          final maybeArt = argsMap['articulos'] ?? argsMap['articulosList'] ?? argsMap['items'];
+
+          if (maybeArt is List) {
             articulosRecibidos = maybeArt.map((e) {
               if (e is Articulo) return e;
               if (e is Map) return Articulo.fromJson(Map<String, dynamic>.from(e));
@@ -592,64 +615,45 @@ class _MetodosPagoPantallaState extends State<MetodosPagoPantalla> {
             }).whereType<Articulo>().toList();
           }
 
-          // Si vienen totales pre-calculados, úsalos directamente
-          if (args.containsKey('valorTotalCop')) {
-            final v = args['valorTotalCop'];
-            if (v is int) _valorTotalCop = v;
-            else if (v is double) _valorTotalCop = v.toInt();
-            else if (v is String) _valorTotalCop = int.tryParse(v) ?? _valorTotalCop;
-          }
-          if (args.containsKey('pesoTotalLb')) {
-            final p = args['pesoTotalLb'];
-            if (p is num) _pesoTotalLb = double.parse(p.toString());
-            else if (p is String) _pesoTotalLb = double.tryParse(p) ?? _pesoTotalLb;
-          }
-          if (args.containsKey('costoImportUsd')) {
-            final c = args['costoImportUsd'];
-            if (c is num) _costoImportUsd = double.parse(c.toString());
-            else if (c is String) _costoImportUsd = double.tryParse(c) ?? _costoImportUsd;
-          }
-          // Si viene método preseleccionado del paso anterior, úsalo para _seleccion
-          if (args.containsKey('metodoEnviar')) {
-            final me = (args['metodoEnviar'] ?? '').toString().toLowerCase();
-            if (me.contains('tarjeta') || me.contains('credito')) {
-              _seleccion = 'credit';
-            } else if (me.contains('debito')) {
-              _seleccion = 'debit';
-            } else if (me.contains('pse')) {
-              _seleccion = 'pse';
+          // Obtener la preselección (se usa en el primer build)
+          if (argsMap.containsKey('metodoEnviar')) {
+            metodoPreseleccionado = (argsMap['metodoEnviar'] ?? '').toString().toLowerCase();
+            if (metodoPreseleccionado.contains('tarjeta') || metodoPreseleccionado.contains('credito')) {
+              metodoPreseleccionado = 'credit';
+            } else if (metodoPreseleccionado.contains('debito')) {
+              metodoPreseleccionado = 'debit';
+            } else if (metodoPreseleccionado.contains('pse')) {
+              metodoPreseleccionado = 'pse';
             }
           }
         }
       } catch (e) {
-        // ignorar parse errors
+        // Manejar errores de parsing
         articulosRecibidos = [];
+        try { print('[MetodosPagoPantalla] Error al parsear argumentos: $e'); } catch (_) {}
       }
 
-      if (articulosRecibidos.isNotEmpty) {
-        // debug
-        try {
-          print('[MetodosPagoPantalla] Articulos recibidos: ${articulosRecibidos.length}');
-        } catch (_) {}
-        _calcularEstimadoDesdeArticulos(articulosRecibidos);
-        // Si ya teníamos _seleccion (preseleccionado), navegar automáticamente a la pantalla correspondiente
-        if (!_autoNavDone && (_seleccion == 'credit' || _seleccion == 'debit')) {
-          final route = _seleccion == 'credit' ? '/tarjeta_credito' : '/tarjeta_debito';
-          final argsNav = {
-            'metodo': _seleccion == 'credit' ? 'Tarjeta de crédito' : 'Tarjeta de débito',
-            'monto': _totalFinalCop,
-            'prendas_cop': _valorTotalCop,
-            'costo_import_cop': _costoImportCop,
-            'articulos': _articulos,
-          };
-          _autoNavDone = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) Navigator.pushNamed(context, route, arguments: argsNav);
-          });
+      if (mounted) {
+        if (articulosRecibidos.isNotEmpty) {
+          // 1. Calcular estimados y setear artículos
+          _calcularEstimadoDesdeArticulos(articulosRecibidos);
+
+          // 2. Setear preselección (si existe)
+          if (metodoPreseleccionado != null) {
+            setState(() {
+              _seleccion = metodoPreseleccionado;
+            });
+          }
+
+          // 3. Navegar automáticamente si aplica (Ej. venía de Tarjeta y debe volver)
+          if (metodoPreseleccionado == 'credit' || metodoPreseleccionado == 'debit') {
+            _navegarATarjeta(forceSelection: metodoPreseleccionado);
+          }
+
+        } else {
+          // Si no hay artículos en argumentos, intentar el fetch API
+          _fetchArticulosFromApi();
         }
-      } else {
-        // intentar obtenerlos del API en background (si el usuario vino desde otra ruta)
-        _fetchArticulosFromApi();
       }
       _inicializado = true;
     }

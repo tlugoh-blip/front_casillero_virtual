@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api_service.dart';
 import '../models/articulo.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 // Formatter que inserta automáticamente '/' después de los dos primeros dígitos
 class ExpiryDateInputFormatter extends TextInputFormatter {
@@ -206,14 +208,29 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                             print('  fecha: $expiry');
                           } catch (_) {}
 
-                          // Llamar al API para procesar pago y persistirlo
+                          // Obtener casilleroId del usuario para pasar al endpoint actualizado
+                          final userId = await ApiService.getUserId();
+                          if (userId == null) throw Exception('Usuario no identificado');
+                          final casilleroId = await ApiService.getCasilleroId(userId);
+                          if (casilleroId == null) throw Exception('No se encontró casillero para el usuario');
+
+                          // Llamar al API para procesar pago y persistirlo (nuevo signature requiere casilleroId y monto int)
                           final result = await ApiService.procesarPago(
+                            casilleroId: casilleroId,
                             metodo: _metodoFromArgs,
-                            monto: _monto, // uso del monto real pasado en arguments
+                            monto: _monto.round(), // enviar como int
                             numeroTarjeta: numero,
                             nombre: nombre,
                             fecha: expiry,
                             cvv: cvc,
+                            articuloIds: _articulosCompradas.map((e) {
+                              if (e is Articulo) return e.id;
+                              if (e is Map) {
+                                final dynamic idRaw = e['id'] ?? e['id_articulo'] ?? e['idArticulo'];
+                                return idRaw is int ? idRaw : int.tryParse('$idRaw');
+                              }
+                              return null;
+                            }).whereType<int>().toList(),
                             persistir: true,
                           );
 
@@ -239,57 +256,88 @@ class _TarjetaCreditoPantallaState extends State<TarjetaCreditoPantalla> {
                           );
 
                           // Navegar a la pantalla de estado (si existe ruta '/estado')
-                          // Si el pago fue exitoso, intentar eliminar los artículos comprados del casillero
+                          // Solo eliminar artículos del casillero si el pago fue APROBADO por el servicio
                           if (context.mounted) {
+                            final String statusRaw = (result['status'] ?? '').toString();
+                            final String statusLower = statusRaw.toLowerCase();
+                            final bool aprobado = statusLower.contains('aprob') || statusLower.contains('approved') || statusLower == 'true';
+
                             final List<int> deletedIds = [];
                             final List<int> failedIds = [];
-                            try {
-                              final userId = await ApiService.getUserId();
-                              if (userId != null && _articulosCompradas.isNotEmpty) {
-                                final casilleroId = await ApiService.getCasilleroId(userId);
-                                if (casilleroId != null) {
-                                  for (final a in _articulosCompradas) {
-                                    try {
-                                      int? aid;
-                                      if (a is Articulo) aid = a.id;
-                                      else if (a is Map) {
-                                        final dynamic idRaw = a['id'] ?? a['id_articulo'] ?? a['idArticulo'];
-                                        aid = idRaw is int ? idRaw : int.tryParse('$idRaw');
-                                      }
-                                      if (aid != null) {
-                                        final resp = await ApiService.deleteArticuloFromCasillero(casilleroId, aid);
-                                        if (resp.statusCode == 200 || resp.statusCode == 204) {
-                                          deletedIds.add(aid);
-                                        } else {
-                                          failedIds.add(aid);
-                                          try { print('[TarjetaCreditoPantalla] delete failed $aid -> ${resp.statusCode} ${resp.body}'); } catch (_) {}
+
+                            if (aprobado) {
+                              try {
+                                final userId = await ApiService.getUserId();
+                                if (userId != null && _articulosCompradas.isNotEmpty) {
+                                  final casilleroId = await ApiService.getCasilleroId(userId);
+                                  if (casilleroId != null) {
+                                    for (final a in _articulosCompradas) {
+                                      try {
+                                        int? aid;
+                                        if (a is Articulo) aid = a.id;
+                                        else if (a is Map) {
+                                          final dynamic idRaw = a['id'] ?? a['id_articulo'] ?? a['idArticulo'];
+                                          aid = idRaw is int ? idRaw : int.tryParse('$idRaw');
                                         }
+                                        if (aid != null) {
+                                          final resp = await ApiService.deleteArticuloFromCasillero(casilleroId, aid);
+                                          if (resp.statusCode == 200 || resp.statusCode == 204) {
+                                            deletedIds.add(aid);
+                                          } else {
+                                            failedIds.add(aid);
+                                            try { print('[TarjetaCreditoPantalla] delete failed $aid -> ${resp.statusCode} ${resp.body}'); } catch (_) {}
+                                          }
+                                        }
+                                      } catch (e) {
+                                        try { print('[TarjetaCreditoPantalla] error deleting articulo: $e'); } catch (_) {}
                                       }
-                                    } catch (e) {
-                                      try { print('[TarjetaCreditoPantalla] error deleting articulo: $e'); } catch (_) {}
                                     }
                                   }
                                 }
+                              } catch (e) {
+                                try { print('[TarjetaCreditoPantalla] general error deleting articulos: $e'); } catch (_) {}
                               }
-                            } catch (e) {
-                              try { print('[TarjetaCreditoPantalla] general error deleting articulos: $e'); } catch (_) {}
                             }
 
-                            // Mostrar resumen de eliminación
+                            // Mostrar resumen de eliminación solo si intentamos eliminar
                             try {
-                              if (deletedIds.isNotEmpty) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Se eliminaron ${deletedIds.length} artículos del casillero.')));
-                              if (failedIds.isNotEmpty) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron eliminar ${failedIds.length} artículos: ${failedIds.join(', ')}')));
+                              if (aprobado && deletedIds.isNotEmpty) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Se eliminaron ${deletedIds.length} artículos del casillero.')));
+                              if (aprobado && failedIds.isNotEmpty) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudieron eliminar ${failedIds.length} artículos: ${failedIds.join(', ')}')));
                             } catch (_) {}
 
                             final argsNav = {
                               'respuesta': result,
                               'articulos': _articulosCompradas,
-                              'paymentConfirmed': true,
-                              'removed_ids': deletedIds,
-                              'failed_ids': failedIds,
-                              'deleted_count': deletedIds.length,
-                              'failed_count': failedIds.length,
+                              'paymentConfirmed': aprobado,
                             };
+                            if (aprobado) {
+                              argsNav['removed_ids'] = deletedIds;
+                              argsNav['failed_ids'] = failedIds;
+                              argsNav['deleted_count'] = deletedIds.length;
+                              argsNav['failed_count'] = failedIds.length;
+                            }
+
+                            // Guardar articulos asociados al pago en SharedPreferences (fallback por pago id)
+                            try {
+                              final pagoIdRaw = result['id'] ?? result['ID'] ?? result['paymentId'];
+                              if (pagoIdRaw != null) {
+                                final pagoId = pagoIdRaw is int ? pagoIdRaw : int.tryParse(pagoIdRaw.toString());
+                                if (pagoId != null) {
+                                  final prefs = await SharedPreferences.getInstance();
+                                  // Normalizar la lista de artículos a lista de Map
+                                  final List<Map<String, dynamic>> asMaps = _articulosCompradas.map((e) {
+                                    if (e is Articulo) return e.toJson();
+                                    if (e is Map) return Map<String, dynamic>.from(e);
+                                    return {'nombre': e.toString()};
+                                  }).toList();
+                                  await prefs.setString('pagoArticles_$pagoId', jsonEncode(asMaps));
+                                  try { print('[TarjetaCreditoPantalla] guardados ${asMaps.length} articulos en SharedPreferences for pago $pagoId'); } catch (_) {}
+                                }
+                              }
+                            } catch (e) {
+                              try { print('[TarjetaCreditoPantalla] error guardando articulos en prefs: $e'); } catch (_) {}
+                            }
+
                             Navigator.pushNamed(context, '/estado', arguments: argsNav);
                           }
 
