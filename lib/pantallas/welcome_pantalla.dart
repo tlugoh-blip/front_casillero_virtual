@@ -48,19 +48,6 @@ class WelcomePantalla extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
-                // Botón de desarrollo para explorar rápidamente todas las pantallas
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                  ),
-                  onPressed: () {
-                    // Navega al launcher ('/') que contiene los botones para revisar todas las pantallas
-                    Navigator.pushNamed(context, '/');
-                  },
-                  child: const Text('Explorar pantallas (dev)'),
-                ),
               ],
             ),
           ),
