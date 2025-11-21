@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:front_casillero_virtual/api_service.dart';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
@@ -116,7 +117,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
       try {
         final prefs = await SharedPreferences.getInstance();
         final userId = await ApiService.getUserId();
-        final key = userId != null ? 'userImage_$userId' : 'userImage_unknown';
+        final String key = userId == null ? 'userImage_unknown' : 'userImage_$userId';
         await prefs.setString(key, base64Image);
         print('DEBUG: Imagen guardada localmente en SharedPreferences con clave $key');
       } catch (e) {
@@ -134,6 +135,42 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
   }
 
   Future<void> _saveProfile() async {
+    // Validaciones antes de enviar
+    final String nombre = _nombreController.text.trim();
+    final String apellidos = _apellidosController.text.trim();
+    final String cedula = _cedulaController.text.trim();
+    final String email = _emailController.text.trim();
+    final String telefono = _telefonoController.text.trim();
+
+    // Nombre y apellidos: solo letras y espacios
+    final RegExp nameReg = RegExp(r"^[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]+$");
+    if (nombre.isEmpty || !nameReg.hasMatch(nombre)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre contiene caracteres no válidos.')));
+      return;
+    }
+    if (apellidos.isEmpty || !nameReg.hasMatch(apellidos)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Los apellidos contienen caracteres no válidos.')));
+      return;
+    }
+
+    // Cédula y teléfono: exactamente 10 dígitos
+    final RegExp tenDigits = RegExp(r'^\d{10}$');
+    if (!tenDigits.hasMatch(cedula)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La cédula debe contener exactamente 10 dígitos numéricos.')));
+      return;
+    }
+    if (!tenDigits.hasMatch(telefono)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El teléfono debe contener exactamente 10 dígitos numéricos.')));
+      return;
+    }
+
+    // Email: más permisiva
+    final RegExp emailRegExp = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+    if (!emailRegExp.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El correo electrónico no tiene un formato válido.')));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -144,16 +181,17 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: Usuario no identificado')),
         );
+        setState(() => _isLoading = false);
         return;
       }
 
       final response = await ApiService.updateUsuario(
         id: userId,
-        nombre: _nombreController.text,
-        apellidos: _apellidosController.text.isNotEmpty ? _apellidosController.text : null,
-        cedula: _cedulaController.text.isNotEmpty ? _cedulaController.text : null,
-        email: _emailController.text,
-        telefono: _telefonoController.text,
+        nombre: nombre,
+        apellidos: apellidos.isNotEmpty ? apellidos : null,
+        cedula: cedula.isNotEmpty ? cedula : null,
+        email: email,
+        telefono: telefono,
         direccionEntrega: _direccionController.text,
         imagen: _base64Image.isNotEmpty ? _base64Image : null,
       );
@@ -174,7 +212,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
         if (_base64Image.isNotEmpty) {
           try {
             final prefs = await SharedPreferences.getInstance();
-            final key = userId != null ? 'userImage_$userId' : 'userImage_unknown';
+            final key = userId == null ? 'userImage_unknown' : 'userImage_$userId';
             await prefs.setString(key, _base64Image);
             print('DEBUG: Imagen guardada localmente tras update en SharedPreferences con clave $key');
           } catch (e) {
@@ -302,15 +340,45 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
                   child: Column(
                     children: [
                       // Orden: nombre (primero), apellidos, cedula, email, telefono, direccionEntrega
-                      _buildTextField('Nombre', _nombreController),
+                      _buildTextField(
+                        'Nombre',
+                        _nombreController,
+                        keyboardType: TextInputType.name,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                          LengthLimitingTextInputFormatter(50),
+                        ],
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('Apellidos', _apellidosController),
+                      _buildTextField(
+                        'Apellidos',
+                        _apellidosController,
+                        keyboardType: TextInputType.name,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                          LengthLimitingTextInputFormatter(50),
+                        ],
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('Cédula', _cedulaController),
+                      _buildTextField(
+                        'Cédula',
+                        _cedulaController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('Email', _emailController),
+                      _buildTextField(
+                        'Email',
+                        _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
                       const SizedBox(height: 16),
-                      _buildTextField('Teléfono', _telefonoController),
+                      _buildTextField(
+                        'Teléfono',
+                        _telefonoController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+                      ),
                       const SizedBox(height: 16),
                       _buildTextField('Dirección de delivery', _direccionController),
                     ],
@@ -346,7 +414,7 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool obscure = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, {bool obscure = false, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -359,6 +427,8 @@ class _EditarPerfilPantallaState extends State<EditarPerfilPantalla> {
           controller: controller,
           obscureText: obscure,
           style: const TextStyle(color: Colors.white),
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color.fromRGBO(255, 255, 255, 0.15),

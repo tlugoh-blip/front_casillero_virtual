@@ -1,5 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../api_service.dart';
+
+// Formatter para fecha de nacimiento en formato yyyy/MM/dd
+class BirthDateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    // Mantener solo dígitos
+    String digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 8) digits = digits.substring(0, 8);
+
+    // Construir partes
+    final year = digits.length >= 4 ? digits.substring(0, 4) : digits;
+    final month = digits.length >= 5 ? (digits.length >= 6 ? digits.substring(4, 6) : digits.substring(4)) : '';
+    final day = digits.length >= 7 ? digits.substring(6) : '';
+
+    String formatted = year;
+    if (month.isNotEmpty) formatted += '/$month';
+    if (day.isNotEmpty) formatted += '/$day';
+
+    // Colocar el cursor al final (suficiente para este uso simple)
+    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+  }
+}
 
 class RegistrarPantalla extends StatefulWidget {
   const RegistrarPantalla({super.key});
@@ -65,9 +88,14 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 28),
-                // Campo nombre
+                // Campo nombre (solo letras, espacios, guion y apóstrofe)
                 TextField(
                   controller: nombreController,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                    LengthLimitingTextInputFormatter(50),
+                  ],
                   decoration: InputDecoration(
                     hintText: 'Nombre',
                     filled: true,
@@ -83,6 +111,11 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                 // Campo apellido
                 TextField(
                   controller: apellidoController,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                    LengthLimitingTextInputFormatter(50),
+                  ],
                   decoration: InputDecoration(
                     hintText: 'Apellido',
                     filled: true,
@@ -95,10 +128,11 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Campo cédula
+                // Campo cédula (solo dígitos, máximo 10)
                 TextField(
                   controller: cedulaController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
                   decoration: InputDecoration(
                     hintText: 'Cédula',
                     filled: true,
@@ -115,6 +149,7 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                 TextField(
                   controller: telefonoController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
                   decoration: InputDecoration(
                     hintText: 'Teléfono',
                     filled: true,
@@ -200,9 +235,14 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                 // Campo fecha de nacimiento
                 TextField(
                   controller: fechaNacimientoController,
-                  keyboardType: TextInputType.datetime,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(8), // limitar dígitos a 8 (yyyy MM dd)
+                    BirthDateInputFormatter(),
+                  ],
                   decoration: InputDecoration(
-                    hintText: 'Fecha de nacimiento (yyyy-MM-dd)',
+                    hintText: 'Fecha de nacimiento (yyyy/MM/dd)',
                     filled: true,
                     fillColor: const Color(0xFFF5F6FA),
                     contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
@@ -245,6 +285,33 @@ class _RegistrarPantallaState extends State<RegistrarPantalla> {
                         );
                         return;
                       }
+
+                      // Validar que cédula y teléfono sean exactamente 10 dígitos numéricos
+                      final RegExp tenDigits = RegExp(r'^\d{10}$');
+                      if (!tenDigits.hasMatch(cedula)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('La cédula debe contener exactamente 10 dígitos numéricos.')),
+                        );
+                        return;
+                      }
+                      if (!tenDigits.hasMatch(telefono)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('El teléfono debe contener exactamente 10 dígitos numéricos.')),
+                        );
+                        return;
+                      }
+
+                      // Validar formato de correo electrónico (más permisiva: permite TLD largos y más caracteres en local-part)
+                      final RegExp emailRegExp = RegExp(
+                        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+                      );
+                      if (!emailRegExp.hasMatch(email)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('El correo electrónico no tiene un formato válido.')),
+                        );
+                        return;
+                      }
+
                       try {
                         final response = await ApiService.register(
                           nombre: nombre,

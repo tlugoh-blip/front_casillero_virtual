@@ -3,7 +3,6 @@ import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
 import '../api_service.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http; // Se añade el import de http para manejar errores (aunque no se use directamente en este archivo, es buena práctica)
 
 class EstadoPantalla extends StatefulWidget {
   const EstadoPantalla({Key? key}) : super(key: key);
@@ -289,20 +288,16 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
                         }
                       } catch (_) {}
 
-                      if (args is Map && (args.containsKey('deleted_count') || args.containsKey('failed_count'))) {
+                      if (args is Map && args.containsKey('deleted_count')) {
                         final int dc = (args['deleted_count'] is int) ? args['deleted_count'] : int.tryParse('${args['deleted_count'] ?? 0}') ?? 0;
-                        final int fc = (args['failed_count'] is int) ? args['failed_count'] : int.tryParse('${args['failed_count'] ?? 0}') ?? 0;
-                        final List<dynamic> fidsRaw = args['failed_ids'] ?? [];
-                        final failedIds = fidsRaw.where((e) => e != null).map((e) => e.toString()).toList();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (dc > 0) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('Se eliminaron $dc artículos del casillero.', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600))),
-                            if (fc > 0) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text('No se pudieron eliminar $fc artículos: ${failedIds.join(', ')}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600))),
-                          ],
-                        );
+                        if (dc > 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text('Se eliminaron $dc artículos del casillero.', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                          );
+                        }
                       }
-                      return const SizedBox.shrink();
+                     return const SizedBox.shrink();
                     }),
                   ],
                 ),

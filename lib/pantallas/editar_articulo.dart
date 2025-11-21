@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../api_service.dart';
 import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
@@ -37,7 +38,8 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
       _colorController.text = a.color;
       // Pre-fill price in USD as a numeric string (e.g. 12.00) so parsing works when saving
       final usd = CurrencyConverter.copToUsd(a.valorUnitario);
-      _precioController.text = usd.toStringAsFixed(2);
+      // Usamos entero en el campo de precio (USD) para mantener consistencia con el inputFormatter
+      _precioController.text = usd.round().toString();
       _pesoController.text = a.peso.toString();
       _urlController.text = a.url;
       // Asegurarnos de que el valor inicial del Dropdown coincide exactamente
@@ -134,12 +136,36 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                 ),
                 child: Column(
                   children: [
-                    _buildTextField('Nombre', _nombreController),
+                    _buildTextField(
+                      'Nombre',
+                      _nombreController,
+                      keyboardType: TextInputType.text,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[A-Za-z0-9ÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                        LengthLimitingTextInputFormatter(50),
+                      ],
+                    ),
                     const SizedBox(height: 16),
-                    _buildTextField('Talla', _tallaController),
+                    _buildTextField(
+                      'Talla',
+                      _tallaController,
+                      keyboardType: TextInputType.text,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
+                        LengthLimitingTextInputFormatter(2),
+                      ],
+                    ),
                     const SizedBox(height: 16),
 
-                    _buildTextField('Color', _colorController),
+                    _buildTextField(
+                      'Color',
+                      _colorController,
+                      keyboardType: TextInputType.text,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]")),
+                        LengthLimitingTextInputFormatter(30),
+                      ],
+                    ),
                     const SizedBox(height: 16),
 
                     // -------------------------
@@ -211,10 +237,11 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
                         ],
                       ),
 
-                    // Campo Precio: editar en USD y mostrar equivalente en COP
+                    // Campo Precio: aceptar solo dígitos (USD entero), máximo 999999
                     TextField(
                       controller: _precioController,
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         labelText: 'Precio (USD)',
@@ -316,9 +343,11 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
   }
 
   // 🔹 Widget reutilizable para los TextFields
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(String label, TextEditingController controller, {TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters}) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
@@ -345,7 +374,7 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
     final subcategoria = _subcategoriaSeleccionada; // agregado
     final urlImagen = _urlController.text.trim();
 
-    // Validaciones: si eligió Ropa, exigir subcategoría
+    // Validaciones básicas de presencia
     if (nombre.isEmpty ||
         talla.isEmpty ||
         color.isEmpty ||
@@ -357,6 +386,31 @@ class _EditarArticuloPantallaState extends State<EditarArticuloPantalla> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, completa todos los campos.')),
       );
+      return;
+    }
+
+    // Validaciones de formato
+    // Nombre: permitir letras y números
+    final RegExp alnumReg = RegExp(r"^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñüÜ\s'-]+$");
+    // Color: solo letras
+    final RegExp lettersReg = RegExp(r"^[A-Za-zÁÉÍÓÚáéíóúÑñüÜ\s'-]+$");
+    if (!alnumReg.hasMatch(nombre)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre solo debe contener letras o números.')));
+      return;
+    }
+    if (!lettersReg.hasMatch(color)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El color solo debe contener letras.')));
+      return;
+    }
+
+    final RegExp tallaReg = RegExp(r'^[A-Za-z0-9]{1,2}$');
+    if (!tallaReg.hasMatch(talla)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La talla debe tener máximo 2 caracteres alfanuméricos.')));
+      return;
+    }
+
+    if (precioUsd <= 0 || precioUsd > 999999) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El precio debe ser un número entre 1 y 999999.')));
       return;
     }
 
