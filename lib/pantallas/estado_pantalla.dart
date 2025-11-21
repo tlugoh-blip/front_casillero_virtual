@@ -3,6 +3,7 @@ import '../models/articulo.dart';
 import '../widgets/currency_converter.dart';
 import '../api_service.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http; // Se añade el import de http para manejar errores (aunque no se use directamente en este archivo, es buena práctica)
 
 class EstadoPantalla extends StatefulWidget {
   const EstadoPantalla({Key? key}) : super(key: key);
@@ -228,20 +229,35 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
                       child: _articulos.isEmpty
                           ? const Center(child: Text('No hay artículos para mostrar.'))
                           : ListView.builder(
-                              itemCount: _articulos.length,
-                              itemBuilder: (ctx, i) {
-                                final a = _articulos[i];
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 6),
-                                  child: ListTile(
-                                    leading: SizedBox(width: 56, child: Image.network(a.url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image))),
-                                    title: Text(a.nombre),
-                                    subtitle: Text('Talla: ${a.talla}'),
-                                    trailing: Text(CurrencyConverter.formatCop(a.valorUnitario)),
-                                  ),
-                                );
-                              },
+                        itemCount: _articulos.length,
+                        itemBuilder: (ctx, i) {
+                          final a = _articulos[i];
+                          // La URL se extrae de a.url gracias a la corrección en Articulo.fromJson
+                          final imageUrl = a.url;
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading: SizedBox(
+                                width: 56,
+                                // 🚀 CORRECCIÓN CLAVE DE VISUALIZACIÓN:
+                                // Usar Image.network solo si la URL no está vacía.
+                                // Usar Icons.broken_image como fallback en caso de fallo de red/URL.
+                                child: imageUrl.isNotEmpty
+                                    ? Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 30) // Fallback si falla la red
+                                )
+                                    : const Icon(Icons.shopping_bag_outlined, size: 30), // Fallback si la URL está vacía
+                              ),
+                              title: Text(a.nombre),
+                              subtitle: Text('Talla: ${a.talla}'),
+                              trailing: Text(CurrencyConverter.formatCop(a.valorUnitario)),
                             ),
+                          );
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 12),
@@ -260,9 +276,6 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
 
                     const SizedBox(height: 12),
 
-                    // Acciones manuales eliminadas: el estado solo se muestra y se determina
-                    // a partir de la información proveniente de la pantalla de pago.
-                    const SizedBox(height: 12),
                     // Si la pantalla recibió info de borrado/comprados, mostrar resumen
                     Builder(builder: (ctx) {
                       final args = ModalRoute.of(context)?.settings.arguments;
@@ -343,8 +356,11 @@ class _EstadoPantallaState extends State<EstadoPantalla> {
           if (e is Articulo) resolved.add(e);
           else if (e is Map) {
             try {
+              // Articulo.fromJson ahora mapea 'imagen' a 'url'.
               resolved.add(Articulo.fromJson(Map<String, dynamic>.from(e)));
-            } catch (_) {}
+            } catch (e) {
+              print('[EstadoPantalla] Error creando Articulo desde Map: $e');
+            }
           } else if (e is String) {
             // intentar parsear JSON string
             try {

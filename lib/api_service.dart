@@ -317,7 +317,8 @@ class ApiService {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       if (decoded is List) {
-        // La respuesta ahora incluye 'articulosPagados' dentro de cada mapa
+        // La respuesta ahora incluye 'articulosPagados' dentro de cada mapa.
+        // Ya no se necesita guardar/cargar articulos de SharedPreferences.
         return List<Map<String, dynamic>>.from(decoded.map((e) => e as Map<String, dynamic>));
       }
       throw Exception('Formato inesperado de respuesta de /pagos. Esperado: Lista');
@@ -330,7 +331,8 @@ class ApiService {
     final response = await http.get(url);
     if (response.statusCode == 200) {
       try {
-        // La respuesta ahora incluye 'articulosPagados'
+        // La respuesta ahora incluye 'articulosPagados' con el campo 'imagen' mapeado desde 'url'.
+        // Ya no se necesita guardar/cargar articulos de SharedPreferences.
         return jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
         print('Error decodificando el pago por ID: $e');

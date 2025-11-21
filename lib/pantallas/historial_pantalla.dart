@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../api_service.dart';
 import '../widgets/currency_converter.dart';
-// import 'package:shared_preferences/shared_preferences.dart'; // No necesaria si no la usamos
+import 'package:http/http.dart' as http; // Se añade el import de http para manejar errores específicos
 
 class HistorialPantalla extends StatefulWidget {
   const HistorialPantalla({Key? key}) : super(key: key);
@@ -22,7 +22,12 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
     _loadPagos();
   }
 
+  // =======================================================
+  // CARGA DE PAGOS
+  // =======================================================
   Future<void> _loadPagos() async {
+    if (_loading) return;
+
     setState(() {
       _loading = true;
       _error = null;
@@ -31,15 +36,20 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
     try {
       final lista = await ApiService.getPagos();
 
-      // 🚨 CORRECCIÓN: Eliminada lógica de guardar artículos en SharedPreferences.
-      // El backend ahora devuelve los artículos directamente en el payload.
-
       setState(() {
         _pagos = lista;
       });
     } catch (e) {
+      // Manejo de errores de red o API más específicos
+      String errorMessage = 'Error al cargar el historial.';
+      if (e is http.ClientException) {
+        errorMessage = 'Error de conexión: Verifica tu red o el servidor.';
+      } else if (e is Exception) {
+        errorMessage = e.toString().contains("404") ? 'Ruta no encontrada.' : e.toString().replaceFirst('Exception:', 'Error API:');
+      }
+
       setState(() {
-        _error = e.toString();
+        _error = errorMessage;
       });
     } finally {
       setState(() {
@@ -48,6 +58,9 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
     }
   }
 
+  // =======================================================
+  // CONSTRUCCIÓN DEL TILE DE PAGO
+  // =======================================================
   Widget _buildPaymentTile(Map<String, dynamic> p) {
     final metodo = (p['metodo'] ?? p['metodoPago'] ?? '').toString();
     final nombre = (p['elNombre'] ?? p['nombre'])?.toString() ?? '—';
@@ -55,6 +68,7 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
     final mensaje = p['mensaje']?.toString() ?? '';
     final fecha = p['fecha']?.toString() ?? '';
 
+    // Conversión segura de monto
     int montoInt = 0;
     final rawMonto = p['monto'] ?? p['total'] ?? 0;
     if (rawMonto is int) montoInt = rawMonto;
@@ -63,6 +77,7 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
 
     final numeroMask = p['numeroTarjetaMask']?.toString() ?? '';
 
+    // Lógica de ícono/imagen de método de pago
     String? assetImage;
     IconData? fallbackIcon;
     final lower = metodo.toLowerCase();
@@ -81,11 +96,12 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
         );
 
         try {
+          // Usamos el objeto original como fallback si la llamada al API falla
           Map<String, dynamic> payment = Map<String, dynamic>.from(p);
           final pagoIdRaw = p['id'] ?? p['ID'];
           final pagoId = pagoIdRaw is int ? pagoIdRaw : (pagoIdRaw != null ? int.tryParse(pagoIdRaw.toString()) : null);
 
-          // Obtener datos frescos (para asegurar que la lista de artículos esté completa)
+          // Obtener datos frescos (asegura que tengamos la última estructura, incluyendo artículos)
           if (pagoId != null) {
             final fresh = await ApiService.getPagoById(pagoId);
             if (fresh != null) payment = Map<String, dynamic>.from(fresh);
@@ -93,34 +109,58 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
 
           final args = Map<String, dynamic>.from(payment);
 
-          // Normalizar nombre y monto
+          // Normalizar datos para la pantalla de estado
           args['nombre'] = (payment['elNombre'] ?? payment['nombre'])?.toString() ?? '—';
           final rawM = payment['monto'];
           if (rawM is int) args['monto'] = rawM;
           else if (rawM is double) args['monto'] = rawM.round();
           else if (rawM is String) args['monto'] = int.tryParse(rawM) ?? 0;
 
-          // 🚨 CORRECCIÓN CLAVE: Obtener artículos del campo 'articulosPagados'
+          // Extraer artículos pagados
           dynamic artsRaw = payment['articulosPagados'] ?? payment['articulos'];
-
-          // 🚨 CORRECCIÓN: Eliminada la búsqueda en SharedPreferences.
 
           List<Map<String, dynamic>> articulos = [];
           if (artsRaw is List) {
             for (final a in artsRaw) {
-              if (a is Map) articulos.add(Map<String, dynamic>.from(a));
-              else articulos.add({'nombre': a.toString()});
+              if (a is Map) {
+                // 💡 MEJORA: Asegurar que se añada el mapa completo.
+                // Esto garantiza que el campo 'imagen' (ArticuloDTO) esté disponible.
+                articulos.add(Map<String, dynamic>.from(a));
+              }
+              else {
+                // Fallback si el artículo no es un mapa (solo para evitar crasheos)
+                articulos.add({'nombre': a.toString(), 'precio': 0, 'imagen': ''});
+              }
             }
           }
-          // Usar el nombre de argumento esperado por la pantalla /estado
-          args['articulos'] = articulos;
+
+          args['articulos'] = articulos; // El argumento que espera la pantalla /estado
 
           Navigator.pop(context);
           Navigator.pushNamed(context, '/estado', arguments: args);
         } catch (e) {
+          // Si falla la carga fresca del API, navegamos con los datos del tile
           Navigator.pop(context);
-          // Fallback en caso de error de API, navegamos con el objeto original
-          Navigator.pushNamed(context, '/estado', arguments: p);
+
+          // Crear args con los datos mínimos del tile para evitar crasheo total
+          final fallbackArgs = {
+            'nombre': nombre,
+            'monto': montoInt,
+            'status': status,
+            'mensaje': mensaje,
+            'metodo': metodo,
+            'numeroTarjetaMask': numeroMask,
+            'fecha': fecha,
+            // Asumimos que no podemos obtener los artículos, pasamos una lista vacía
+            'articulos': [],
+          };
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cargar detalles: ${e.toString().split(':')[0]}.')),
+          );
+
+          // Navegar con datos incompletos pero seguros
+          Navigator.pushNamed(context, '/estado', arguments: fallbackArgs);
         }
       },
       child: Container(
@@ -169,7 +209,13 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(status, style: TextStyle(color: status == 'RECHAZADO' ? Colors.red : (status == 'PENDIENTE' ? Colors.orange : Colors.green), fontWeight: FontWeight.w600)),
+                      Text(
+                          status,
+                          style: TextStyle(
+                              color: status == 'RECHAZADO' ? Colors.red : (status == 'PENDIENTE' ? Colors.orange : Colors.green),
+                              fontWeight: FontWeight.w600
+                          )
+                      ),
                       Text(mensaje, style: TextStyle(color: Colors.grey.shade600)),
                     ],
                   ),
@@ -182,6 +228,9 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
     );
   }
 
+  // =======================================================
+  // BUILD PRINCIPAL
+  // =======================================================
   @override
   Widget build(BuildContext context) {
     const azulFondo = Color(0xFF002B68);
@@ -195,7 +244,15 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/imagenes/upperblanco.png', height: 80, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Text('Upper®', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))),
+                  Image.asset(
+                      'assets/imagenes/upperblanco.png',
+                      height: 80,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text(
+                          'Upper®',
+                          style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)
+                      )
+                  ),
                   IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
                 ],
               ),
@@ -211,7 +268,7 @@ class _HistorialPantallaState extends State<HistorialPantalla> {
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : _error != null
-                    ? Center(child: Text('Error: $_error'))
+                    ? Center(child: Text('Error: $_error', textAlign: TextAlign.center,))
                     : _pagos.isEmpty
                     ? const Center(child: Text('No hay pagos registrados.'))
                     : RefreshIndicator(

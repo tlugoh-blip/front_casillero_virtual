@@ -51,6 +51,9 @@ class Articulo {
       else peso = double.tryParse('$p') ?? 0.0;
     }
 
+    // 🚀 CORRECCIÓN CLAVE: Buscar la URL también en el campo 'imagen' (enviado por PagoResponseDTO)
+    final imageUrl = json['imagen'] ?? json['url'];
+
     return Articulo(
       id: id,
       nombre: nombre,
@@ -58,7 +61,8 @@ class Articulo {
       categoria: '${json['categoria'] ?? ''}',
       color: '${json['color'] ?? ''}',
       valorUnitario: valor,
-      url: '${json['url'] ?? ''}',
+      // Usar el valor encontrado, asegurando que sea un String no nulo
+      url: '${imageUrl ?? ''}',
       peso: peso,
     );
   }
